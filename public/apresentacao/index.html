@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aerobrasil: o sistema no dia a dia</title>
+<meta name="description" content="Sete situações do dia a dia da Aerobrasil Drones, mostradas passo a passo com as telas do sistema em uso. Demonstração com dados fictícios.">
+<meta name="theme-color" content="#F3F6F4">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<script>document.documentElement.className='js'</script>
+<style>
+:root{
+  --nevoa:#F3F6F4; --papel:#FFFFFF; --mata:#10231C; --mata-suave:#4B5F56;
+  --lavoura:#1F8A4C; --lavoura-escuro:#17703D; --lavoura-claro:#E3F3EA;
+  --ceu:#1E78C8; --ceu-texto:#14578F; --ambar:#D99A00; --barro:#C8402F; --linha:#DDE5E0;
+  --raio:6px; --painel:10px; --gut:16px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--nevoa);color:var(--mata);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:1rem;line-height:1.55;font-weight:400;font-stretch:100%;overflow-x:hidden}
+img{max-width:100%;display:block}
+h1,h2,h3{font-weight:600;font-stretch:112%;line-height:1.15;margin:0;letter-spacing:-.01em}
+p{margin:0}
+a{color:var(--ceu-texto)}
+.c{width:100%;max-width:1280px;margin-inline:auto;padding-inline:var(--gut)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border-radius:var(--raio);background:var(--lavoura);color:#fff;font-weight:600;font-size:1rem;text-decoration:none;border:1px solid var(--lavoura);transition:background .15s}
+.btn:hover{background:var(--lavoura-escuro)}
+.btn.sec{background:var(--papel);color:var(--mata);border-color:var(--linha)}
+.btn.sec:hover{background:var(--lavoura-claro);border-color:var(--lavoura)}
+:focus-visible{outline:3px solid var(--ceu);outline-offset:2px}
+
+/* topo */
+.topo{padding:14px 0}
+.topo .c{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.topo img{height:44px;width:auto}
+.topo .btn{min-height:40px;padding:0 16px;font-size:.9375rem}
+
+/* hero */
+.hero{padding:20px 0 56px}
+.hero-g{display:grid;gap:36px}
+.hero h1{font-size:clamp(1.75rem,6.4vw,2.5rem)}
+.hero-t p{margin-top:14px;font-size:1.0625rem;color:var(--mata-suave);max-width:36rem}
+.acoes{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.hero-m{position:relative;padding-bottom:44px}
+.hero-m .desk{border:1px solid var(--linha);border-radius:var(--painel);overflow:hidden;background:var(--papel);box-shadow:0 18px 40px -18px rgba(16,35,28,.35)}
+.hero-m .desk img{width:100%;height:auto}
+.fone{position:absolute;right:6px;bottom:0;width:31%;max-width:190px;background:var(--mata);padding:5px;border-radius:20px;box-shadow:0 14px 30px -12px rgba(16,35,28,.5)}
+.fone img{border-radius:15px;width:100%;height:auto;background:#fff}
+@media(min-width:900px){
+  .hero{padding:36px 0 84px}
+  .hero-g{grid-template-columns:4fr 8fr;align-items:center;gap:40px}
+  .fone{right:-14px;padding:7px;border-radius:28px}
+  .fone img{border-radius:21px}
+}
+
+/* cenas */
+.cena{max-width:1280px;margin-inline:auto;padding:44px var(--gut);display:grid;gap:22px;border-top:1px solid var(--linha);scroll-margin-top:8px}
+.cena .num{font-size:.875rem;color:var(--lavoura-escuro);font-weight:600}
+.cena h2{font-size:clamp(1.5rem,5.6vw,2.25rem);margin-top:6px}
+.cena .dor{margin-top:12px;font-size:1.0625rem;color:var(--mata-suave);max-width:30rem}
+.cena .perfil{margin-top:14px;font-size:.9375rem}
+.cena .btn{margin-top:18px}
+.cena .dica{margin-top:8px;font-size:.8125rem;color:var(--mata-suave)}
+.texto{align-self:center}
+@media(min-width:900px){
+  .cena{grid-template-columns:4fr 8fr;gap:48px;padding-block:72px}
+  .cena.inv{grid-template-columns:8fr 4fr}
+  .cena.inv .texto{order:2}
+  .cena.inv .filme{order:1}
+}
+
+/* filme */
+.filme{min-width:0}
+.tela{position:relative;aspect-ratio:16/10;border:1px solid var(--linha);border-radius:var(--painel);overflow:hidden;background:var(--papel)}
+.tela img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .35s ease}
+.tela img:first-child{opacity:1}
+.js .tela img:first-child{opacity:0}
+.js .tela img.on{opacity:1}
+.filme.tel .tela{aspect-ratio:780/1688;width:min(100%,290px);margin-inline:auto;border:8px solid var(--mata);border-radius:34px;background:#fff}
+.filme.tel .tela img{object-fit:cover}
+.legenda{margin-top:12px;font-size:.9375rem;min-height:2.9em;display:flex;gap:10px;align-items:baseline}
+.filme.tel .legenda{max-width:290px;margin-inline:auto}
+.legenda b{font-weight:600;color:var(--lavoura-escuro);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ctl{display:flex;align-items:center;gap:8px;margin-top:4px}
+.filme.tel .ctl{max-width:290px;margin-inline:auto}
+.seta{flex:none;width:44px;height:44px;border-radius:var(--raio);border:1px solid var(--linha);background:var(--papel);color:var(--mata);display:grid;place-items:center;cursor:pointer;padding:0}
+.seta:hover{border-color:var(--lavoura);background:var(--lavoura-claro)}
+.seta svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.passos{flex:1;display:flex;gap:4px;list-style:none;margin:0;padding:0;min-width:0}
+.passos li{flex:1;min-width:0}
+.passos button{display:flex;align-items:center;width:100%;height:44px;padding:0;border:0;background:none;cursor:pointer}
+.passos button span{display:block;width:100%;height:4px;border-radius:2px;background:var(--linha);position:relative;overflow:hidden}
+.passos button span::after{content:"";position:absolute;inset:0;background:var(--lavoura);transform:scaleX(0);transform-origin:left}
+.passos button.feito span::after{transform:scaleX(1)}
+.passos button.on span::after{transform:scaleX(1)}
+.toca .passos button.on span::after{transform:scaleX(0);animation:enche 3.2s linear forwards}
+.toca.pausa .passos button.on span::after{animation-play-state:paused}
+@keyframes enche{to{transform:scaleX(1)}}
+
+/* setores */
+.setores{background:var(--papel);border-block:1px solid var(--linha);padding:56px 0}
+.setores h2{font-size:clamp(1.375rem,4.6vw,2rem)}
+.setores .c>p{color:var(--mata-suave);margin-top:8px;max-width:36rem}
+.setores ul{list-style:none;margin:28px 0 0;padding:0;display:grid;gap:22px;grid-template-columns:1fr 1fr}
+.setores li img{width:100%;height:auto;border:1px solid var(--linha);border-radius:var(--painel)}
+.setores h3{font-size:1.0625rem;margin-top:10px}
+.setores li p{font-size:.875rem;color:var(--mata-suave);margin-top:2px}
+@media(min-width:900px){.setores ul{grid-template-columns:repeat(4,1fr);gap:20px}}
+
+/* rodapé */
+.rodape{background:var(--mata);color:#E6EEEA;padding:56px 0 40px}
+.rodape h2{font-size:clamp(1.375rem,4.6vw,2rem);color:#fff}
+.rodape .g{display:grid;gap:32px;margin-top:24px}
+.rodape h3{font-size:1.0625rem;color:#fff}
+.rodape ul{margin:12px 0 0;padding-left:1.1em;color:#C9D8D1}
+.rodape li{margin-top:6px}
+.rodape .btn{margin-top:32px}
+.rodape .selo{display:inline-block;font-size:.75rem;font-weight:600;color:#fff;padding:1px 8px;border-radius:999px;background:linear-gradient(90deg,var(--lavoura),var(--ceu));vertical-align:1px}
+.rodape small{display:block;margin-top:28px;color:#9DB0A7;font-size:.8125rem}
+@media(min-width:900px){.rodape .g{grid-template-columns:1fr 1fr;gap:56px}}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .tela img{transition:none}
+  .toca .passos button.on span::after{animation:none;transform:scaleX(1)}
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="c">
+    <img src="../marca/logo.png" alt="Aerobrasil Drones" width="73" height="44">
+    <a class="btn" href="../">Abrir o sistema</a>
+  </div>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="h1">
+  <div class="c hero-g">
+    <div class="hero-t">
+      <h1 id="h1">Orçamento, oficina, estoque e financeiro num sistema só, do escritório ao campo.</h1>
+      <p>Veja sete situações do dia a dia da Aerobrasil, passo a passo, com as telas do sistema em uso.</p>
+      <div class="acoes">
+        <a class="btn" href="../">Abrir o sistema</a>
+        <a class="btn sec" href="#cena1">Ver as cenas</a>
+      </div>
+    </div>
+    <div class="hero-m">
+      <div class="desk"><img src="img/cena7-1.webp" alt="Tela Início do sistema, com vendas, ordens de serviço e a leitura da IA" width="1440" height="900"></div>
+      <div class="fone"><img src="img/hero-celular.webp" alt="Agenda do técnico no celular, com o botão Abrir no Waze" width="780" height="1688"></div>
+    </div>
+  </div>
+</section>
+
+
+<section class="cena" id="cena1" aria-labelledby="t1">
+  <div class="texto">
+    <p class="num">Cena 1 de 7</p>
+    <h2 id="t1">Cliente pediu peça pelo WhatsApp</h2>
+    <p class="dor">O orçamento demora, e o cliente já quer saber se tem e quanto custa.</p>
+    <p class="perfil">No sistema: <strong>Vendas (Diego)</strong></p>
+    <a class="btn" href="../#/conversas">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Cliente pediu peça pelo WhatsApp">
+    <div class="tela">
+      <img src="img/cena1-1.webp" alt="Conversa no sistema: cliente pedindo hélices, bico centrífugo e parafusos" data-leg="Conversa do cliente: ele quer hélices, bico e parafusos" width="1440" height="900" decoding="async">
+      <img src="img/cena1-2.webp" alt="Resposta sugerida pela IA com base no estoque" data-leg="A IA lê o estoque e sugere a resposta" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena1-3.webp" alt="Orçamento com três itens, total e peso estimado de 1,5 kg" data-leg="Orçamento montado sozinho, com peso para o frete" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena1-4.webp" alt="Pré-visualização da proposta comercial" data-leg="Proposta no padrão da empresa, pronta para PDF" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena1-5.webp" alt="Ficha do cliente com drones, garantia e histórico" data-leg="Cliente, drones e garantia na mesma tela" width="1440" height="900" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+<section class="cena inv" id="cena2" aria-labelledby="t2">
+  <div class="texto">
+    <p class="num">Cena 2 de 7</p>
+    <h2 id="t2">Apareceu interessado num T50</h2>
+    <p class="dor">Contato de drone esfria quando ninguém anota a próxima ação.</p>
+    <p class="perfil">No sistema: <strong>Vendas (Diego)</strong></p>
+    <a class="btn" href="../#/funil">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Apareceu interessado num T50">
+    <div class="tela">
+      <img src="img/cena2-1.webp" alt="Funil de vendas com os contatos por etapa" data-leg="O funil mostra cada interessado na sua etapa" width="1440" height="900" decoding="async">
+      <img src="img/cena2-2.webp" alt="Cartão movido para a coluna Demonstração" data-leg="Arrasta o cartão para Demonstração" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena2-3.webp" alt="Cartão aberto com próxima ação e data" data-leg="Próxima ação, data e responsável no cartão" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena2-4.webp" alt="Orçamento do T50 criado a partir do contato" data-leg="Gerar orçamento do drone, com o kit" width="1440" height="900" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+<section class="cena" id="cena3" aria-labelledby="t3">
+  <div class="texto">
+    <p class="num">Cena 3 de 7</p>
+    <h2 id="t3">Drone chegou quebrado na oficina</h2>
+    <p class="dor">“Os guris tiram foto e eu preciso da descrição pronta, com as fotos no lugar certo.”</p>
+    <p class="perfil">No sistema: <strong>Técnico (Tiago), no celular</strong></p>
+    <a class="btn" href="../#/relatorios">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme tel" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Drone chegou quebrado na oficina">
+    <div class="tela">
+      <img src="img/cena3-1.webp" alt="Leitor de QR mostrando o T40 da Fazenda Santa Luzia" data-leg="Leu o QR do drone: dono, horas de voo e histórico" class="tel" width="780" height="1688" decoding="async">
+      <img src="img/cena3-2.webp" alt="Fotos de chegada e de dano na ordem de serviço" data-leg="Fotos de chegada e de dano ficam na OS" class="tel" width="780" height="1688" decoding="async" loading="lazy">
+      <img src="img/cena3-3.webp" alt="Peças e serviços da OS, com o braço do T40" data-leg="Só entram peças que servem no T40" class="tel" width="780" height="1688" decoding="async" loading="lazy">
+      <img src="img/cena3-4.webp" alt="Campo de relato com o botão Gerar relatório" data-leg="Palavras-chave viram relatório, por texto ou voz" class="tel" width="780" height="1688" decoding="async" loading="lazy">
+      <img src="img/cena3-5.webp" alt="Relatório gerado com as fotos nas seções" data-leg="Laudo pronto, com as fotos nas seções certas" class="tel" width="780" height="1688" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+<section class="cena inv" id="cena4" aria-labelledby="t4">
+  <div class="texto">
+    <p class="num">Cena 4 de 7</p>
+    <h2 id="t4">Técnico vai pra fazenda, sem sinal</h2>
+    <p class="dor">A fazenda não tem estrada no mapa, e nada pode se perder sem internet.</p>
+    <p class="perfil">No sistema: <strong>Gestor (Marina) e Técnico (Tiago)</strong></p>
+    <a class="btn" href="../#/os">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme misto" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Técnico vai pra fazenda, sem sinal">
+    <div class="tela">
+      <img src="img/cena4-1.webp" alt="Lançar OS com a localização colada da mensagem" data-leg="Gestor cola a localização do WhatsApp" width="1440" height="900" decoding="async">
+      <img src="img/cena4-2.webp" alt="Checklist do compromisso montado automaticamente" data-leg="O checklist se monta pelos serviços escolhidos" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena4-3.webp" alt="Agenda do técnico com coordenadas e botão do Waze" data-leg="No celular, o técnico abre o local no Waze" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena4-4.webp" alt="Checklist marcado com o aviso de sem internet" data-leg="Sem internet: marca o checklist e tudo fica no aparelho" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena4-5.webp" alt="OS com o progresso do checklist do técnico" data-leg="Voltou o sinal: sincronizou, e o gestor vê o progresso" width="1440" height="900" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+<section class="cena" id="cena5" aria-labelledby="t5">
+  <div class="texto">
+    <p class="num">Cena 5 de 7</p>
+    <h2 id="t5">Essa peça serve em qual drone?</h2>
+    <p class="dor">Peça serve em vários modelos, e ninguém lembra o peso nem a prateleira.</p>
+    <p class="perfil">No sistema: <strong>Estoque (Paula)</strong></p>
+    <a class="btn" href="../#/estoque">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Essa peça serve em qual drone?">
+    <div class="tela">
+      <img src="img/cena5-1.webp" alt="Lista de peças filtrada para o T40" data-leg="Filtro “Serve no T40”: exclusivas e compartilhadas" width="1440" height="900" decoding="async">
+      <img src="img/cena5-2.webp" alt="Detalhe da peça com peso, modelos e QR" data-leg="Compatibilidade, peso para frete e etiqueta QR" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena5-3.webp" alt="Leitor de QR com a peça encontrada" data-leg="Leu o QR da peça: onde está e quantas tem" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena5-4.webp" alt="Vista explodida do T40 com o motor selecionado" data-leg="Vista explodida: toca no motor e vê a peça" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena5-5.webp" alt="Catálogo de peças do T40 sem preços" data-leg="Catálogo para o cliente, sem os preços" width="1440" height="900" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+<section class="cena inv" id="cena6" aria-labelledby="t6">
+  <div class="texto">
+    <p class="num">Cena 6 de 7</p>
+    <h2 id="t6">Chegou a nota do fornecedor</h2>
+    <p class="dor">Cadastrar peça na mão, uma por uma, com o XML já trazendo tudo.</p>
+    <p class="perfil">No sistema: <strong>Estoque (Paula)</strong></p>
+    <a class="btn" href="../#/notas">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Chegou a nota do fornecedor">
+    <div class="tela">
+      <img src="img/cena6-1.webp" alt="Lista de notas fiscais" data-leg="Notas fiscais de saída e de entrada" width="1440" height="900" decoding="async">
+      <img src="img/cena6-2.webp" alt="Conferência da nota importada" data-leg="O XML foi lido: 3 peças reconhecidas, 2 novas" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena6-3.webp" alt="Cadastro das peças novas preenchido pelo XML" data-leg="As peças novas já vêm preenchidas, com peso" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena6-4.webp" alt="Resumo da entrada no estoque" data-leg="Entrada feita e conta a pagar criada" width="1440" height="900" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+<section class="cena" id="cena7" aria-labelledby="t7">
+  <div class="texto">
+    <p class="num">Cena 7 de 7</p>
+    <h2 id="t7">Como está a empresa?</h2>
+    <p class="dor">Saber o que mais sai, o que parou e o que venceu, sem abrir planilha.</p>
+    <p class="perfil">No sistema: <strong>Gestor (Marina)</strong></p>
+    <a class="btn" href="../#/financeiro">Fazer isso no sistema</a>
+    <p class="dica">Troque o perfil em “Ver como”.</p>
+  </div>
+  <div class="filme" data-filme role="group" aria-roledescription="sequência de telas" aria-label="Passo a passo: Como está a empresa?">
+    <div class="tela">
+      <img src="img/cena7-1.webp" alt="Painel Início com leitura da IA" data-leg="Início: leitura da IA e peças que mais saem" width="1440" height="900" decoding="async">
+      <img src="img/cena7-2.webp" alt="Financeiro filtrado em vencidos" data-leg="Financeiro: o que está vencido" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena7-3.webp" alt="Financeiro após marcar um recebimento" data-leg="Marcou como recebido, e o vencido diminuiu" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena7-4.webp" alt="Assistente listando peças paradas" data-leg="Pergunta ao assistente e recebe a tabela" width="1440" height="900" decoding="async" loading="lazy">
+      <img src="img/cena7-5.webp" alt="Assistente do técnico recusando uma pergunta de faturamento" data-leg="Técnico pergunta faturamento: o assistente recusa" width="1440" height="900" decoding="async" loading="lazy">
+    </div>
+    <p class="legenda" data-legenda></p>
+    <div class="ctl">
+      <button type="button" class="seta" data-ant aria-label="Passo anterior"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <ol class="passos" data-passos></ol>
+      <button type="button" class="seta" data-prox aria-label="Próximo passo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<section class="setores" aria-labelledby="hs">
+  <div class="c">
+    <h2 id="hs">Cada setor vê o seu</h2>
+    <p>O menu e o início mudam conforme o perfil. O técnico não vê o financeiro, e o vendedor não mexe no estoque.</p>
+    <ul><li><img src="img/setor-gestor.webp" alt="Tela inicial do perfil Gestor" width="900" height="600" loading="lazy"><h3>Gestor</h3><p>Vê tudo: vendas, oficina, estoque e financeiro.</p></li><li><img src="img/setor-vendas.webp" alt="Tela inicial do perfil Vendas" width="900" height="600" loading="lazy"><h3>Vendas</h3><p>Funil, orçamentos, clientes e conversas.</p></li><li><img src="img/setor-tecnico.webp" alt="Tela inicial do perfil Técnico" width="900" height="600" loading="lazy"><h3>Técnico</h3><p>Agenda, OS e relatórios: só o que é dele.</p></li><li><img src="img/setor-estoque.webp" alt="Tela inicial do perfil Estoque" width="900" height="600" loading="lazy"><h3>Estoque</h3><p>Peças, catálogo e notas de compra.</p></li></ul>
+  </div>
+</section>
+</main>
+
+<footer class="rodape">
+  <div class="c">
+    <h2>O que você viu e o que vem depois</h2>
+    <div class="g">
+      <div>
+        <h3>Esta é uma demonstração</h3>
+        <ul>
+          <li>Clientes, peças, notas e valores são fictícios.</li>
+          <li>Funciona no navegador, sem servidor: o que você mexe fica só no seu aparelho.</li>
+          <li>A IA aqui é simulada. O WhatsApp e a nota fiscal são só a tela.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>O sistema de verdade terá</h3>
+        <ul>
+          <li>Servidor próprio, com login por perfil e cópia de segurança.</li>
+          <li>WhatsApp Business ligado às conversas.</li>
+          <li>Nota fiscal emitida de verdade, com a SEFAZ.</li>
+          <li>IA Claude rodando no servidor <span class="selo">IA</span></li>
+        </ul>
+      </div>
+    </div>
+    <a class="btn" href="../">Abrir o sistema</a>
+    <small>Aerobrasil Drones. Demonstração com dados fictícios.</small>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduz = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('[data-filme]').forEach(function(f){
+    var imgs = [].slice.call(f.querySelectorAll('.tela img'));
+    var ol = f.querySelector('[data-passos]');
+    var leg = f.querySelector('[data-legenda]');
+    var i = 0, parou = false, visivel = false;
+    var segs = imgs.map(function(_, k){
+      var li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-label', 'Ir ao passo ' + (k + 1) + ' de ' + imgs.length);
+      b.appendChild(document.createElement('span'));
+      b.addEventListener('click', function(){ parar(); ir(k); });
+      li.appendChild(b); ol.appendChild(li); return b;
+    });
+    function parar(){ parou = true; atualiza(); }
+    function atualiza(){ f.classList.toggle('toca', visivel && !parou && !reduz); }
+    function ir(k){
+      i = (k + imgs.length) % imgs.length;
+      imgs.forEach(function(m, j){ m.classList.toggle('on', j === i); });
+      segs.forEach(function(b, j){ b.classList.remove('on'); b.classList.toggle('feito', j < i); b.removeAttribute('aria-current'); });
+      void f.offsetWidth;
+      segs[i].classList.add('on'); segs[i].setAttribute('aria-current', 'step');
+      leg.textContent = '';
+      var n = document.createElement('b'); n.textContent = (i + 1) + '/' + imgs.length;
+      leg.appendChild(n); leg.appendChild(document.createTextNode(imgs[i].dataset.leg));
+    }
+    f.querySelector('[data-ant]').addEventListener('click', function(){ parar(); ir(i - 1); });
+    f.querySelector('[data-prox]').addEventListener('click', function(){ parar(); ir(i + 1); });
+    ol.addEventListener('animationend', function(e){ if (e.target.parentNode && e.target.parentNode.classList.contains('on')) ir(i + 1); }, true);
+    function pausa(v){ f.classList.toggle('pausa', v); }
+    f.addEventListener('mouseenter', function(){ pausa(true); });
+    f.addEventListener('mouseleave', function(){ pausa(false); });
+    f.addEventListener('focusin', function(){ pausa(true); });
+    f.addEventListener('focusout', function(){ pausa(false); });
+    f.addEventListener('touchstart', function(){ pausa(true); }, {passive:true});
+    f.addEventListener('touchend', function(){ setTimeout(function(){ pausa(false); }, 4000); }, {passive:true});
+    ir(0);
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function(es){ visivel = es[0].isIntersecting; atualiza(); }, {threshold: .55}).observe(f);
+    } else { visivel = true; atualiza(); }
+  });
+})();
+</script>
+</body>
+</html>
