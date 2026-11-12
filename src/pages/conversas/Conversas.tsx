@@ -249,7 +249,7 @@ export default function Conversas() {
               {(['todas', ...ETIQUETAS] as const).map((e) => (
                 <button key={e} type="button" onClick={() => setFiltro(e)} aria-pressed={filtro === e}
                   className={cx('min-h-9 rounded-full border px-3 text-xs font-medium transition-colors',
-                    filtro === e ? 'border-mata bg-mata text-white' : 'border-linha bg-papel text-mata-suave hover:text-mata')}>
+                    filtro === e ? 'border-forte bg-forte text-white' : 'border-linha bg-papel text-mata-suave hover:text-mata')}>
                   {e === 'todas' ? 'Todas' : e}
                 </button>
               ))}
@@ -323,7 +323,7 @@ export default function Conversas() {
                       <div key={m.id} className={cx('flex', m.de === 'equipe' ? 'justify-end' : 'justify-start')}>
                         <div className={cx('max-w-[86%] rounded-painel px-3.5 py-2 text-[15px] leading-relaxed sm:max-w-[72%]',
                           m.de === 'equipe' ? 'rounded-br-sm bg-lavoura-claro' : 'rounded-bl-sm border border-linha bg-papel')}>
-                          {m.de === 'equipe' && <p className="mb-0.5 text-xs font-semibold text-lavoura-escuro">Equipe</p>}
+                          {m.de === 'equipe' && <p className="mb-0.5 text-xs font-semibold text-lavoura-texto">Equipe</p>}
                           <p className="whitespace-pre-wrap break-words">{m.texto}</p>
                           <p className="num mt-0.5 text-right text-[11px] text-mata-suave">{horaMin(m.hora)}</p>
                         </div>

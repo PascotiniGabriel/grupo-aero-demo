@@ -56,7 +56,7 @@ export function BaseConhecimento() {
                   <p className="mt-1 flex items-center gap-1.5 text-xs text-ceu"><Loader2 size={12} className="animate-spin" aria-hidden />{d.etapa} ({d.progresso}%)</p>
                 </div>
               ) : (
-                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-lavoura-escuro"><CheckCircle2 size={13} aria-hidden /> Lido e pronto para consulta</p>
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-lavoura-texto"><CheckCircle2 size={13} aria-hidden /> Lido e pronto para consulta</p>
               )}
             </div>
           </li>

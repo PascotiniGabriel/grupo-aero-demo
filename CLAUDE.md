@@ -38,6 +38,8 @@ mostrar o fluxo completo do sistema. Layout simples, objetivo e intuitivo.
 - Forma: raio 6px em campos/botões, 10px em painéis. Painéis com borda `linha`, sem
   sombra; sombra só em modal/drawer/menu. Nada de degradê decorativo nem cartões
   idênticos em grade só por enfeite.
+- **Marca**: logo da Aerobrasil Drones (`public/marca/logo.png`, `simbolo.png`, pretos com fundo transparente). Use `Marca`/`SimboloMarca` de `components/layout/Marca.tsx` (máscara CSS: assume a cor do texto); em documentos impressos use `LogoDocumento` (preta). Nunca recolorir nem redesenhar a logo.
+- **Tema claro/escuro/automático** (`aero-tema` no localStorage, `data-tema="escuro"` no `<html>`, `src/lib/tema.ts`): só tokens, nada de hex em tela. `mata` é texto (claro no escuro); barra lateral usa `barra`, botões/pílulas fortes `forte`; textos coloridos em `lavoura-texto`, `ceu-texto`, `ambar-texto`, `barro-texto`. Documentos (`folha-claro`) e impressão ficam sempre claros.
 - Movimento: só em resposta a ação (abrir, gerar, confirmar). Respeitar
   `prefers-reduced-motion`.
 - Gráficos (recharts): séries em `lavoura`, `ceu`, `ambar`, `mata`; grade discreta,

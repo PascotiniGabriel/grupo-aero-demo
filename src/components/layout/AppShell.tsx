@@ -6,7 +6,8 @@ import { Button, EstadoVazio, IconButton, SeloIA, Toasts, cx } from '@/component
 import { inicioDoPapel, podeAcessar, type Papel } from '@/lib/acesso'
 import { LeitorQR, useLeitorQR } from '@/components/qr/LeitorQR'
 import { BuscaGlobal, useBuscaGlobal } from './BuscaGlobal'
-import { Marca } from './Marca'
+import { Marca, MarcaCompacta } from './Marca'
+import { BotaoTema, SeletorTema } from './Tema'
 import { gruposDoPapel, usePapel, type ItemNav } from './nav'
 import { IndicadorSync } from './Sincronizacao'
 import { VerComo } from './VerComo'
@@ -26,14 +27,14 @@ export function AppShell() {
 
   return (
     <div className="casca-app flex min-h-dvh">
-      <aside className="nao-imprimir sticky top-0 hidden h-dvh w-[252px] shrink-0 bg-mata lg:block">
+      <aside className="nao-imprimir sticky top-0 hidden h-dvh w-[252px] shrink-0 bg-barra lg:block">
         <BarraLateral />
       </aside>
 
       {menuAberto && (
         <div className="nao-imprimir fixed inset-0 z-40 lg:hidden" role="presentation">
-          <div className="absolute inset-0 bg-mata/60" onClick={() => setMenuAberto(false)} aria-hidden />
-          <div role="dialog" aria-modal="true" aria-label="Menu" className="anim-menu relative h-full w-[min(300px,86vw)] bg-mata shadow-2xl">
+          <div className="absolute inset-0 bg-barra/60" onClick={() => setMenuAberto(false)} aria-hidden />
+          <div role="dialog" aria-modal="true" aria-label="Menu" className="anim-menu relative h-full w-[min(300px,86vw)] bg-barra shadow-2xl">
             <BarraLateral aoFechar={() => setMenuAberto(false)} />
           </div>
         </div>
@@ -89,7 +90,7 @@ function FaixaDemo() {
     try { sessionStorage.setItem('aero-faixa', 'oculta') } catch { /* sem armazenamento */ }
   }
   return (
-    <div className="nao-imprimir flex items-center gap-2 bg-ambar-claro pl-4 pr-1 text-xs text-[#7A5600] md:pl-6 lg:pl-8">
+    <div className="nao-imprimir flex items-center gap-2 bg-ambar-claro pl-4 pr-1 text-xs text-ambar-texto md:pl-6 lg:pl-8">
       <p className="flex-1 py-1.5">Demonstração com dados fictícios. O que você alterar fica salvo só neste navegador.</p>
       <button type="button" onClick={fechar} aria-label="Dispensar aviso de demonstração" className="flex h-9 w-9 shrink-0 items-center justify-center rounded hover:bg-ambar/15">
         <X size={14} aria-hidden />
@@ -107,8 +108,8 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
 
   return (
     <div className="flex h-full flex-col text-white">
-      <div className="flex h-16 shrink-0 items-center justify-between pl-5 pr-2">
-        <Link to="/" aria-label="Grupo AERO, ir para o início" className="rounded-campo"><Marca clara /></Link>
+      <div className="flex h-24 shrink-0 items-center justify-between pl-5 pr-2">
+        <Link to="/" aria-label="Aerobrasil Drones, ir para o início" className="rounded-campo"><Marca clara largura={128} /></Link>
         {aoFechar && (
           <button type="button" onClick={aoFechar} aria-label="Fechar menu" className="flex h-10 w-10 items-center justify-center rounded-campo text-white/70 hover:bg-white/10 hover:text-white">
             <X size={18} aria-hidden />
@@ -142,6 +143,7 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
           <Settings size={18} className="shrink-0" aria-hidden />
           <span className="flex-1 truncate">{papel === 'Gestor' ? 'Configurações' : 'Meu perfil'}</span>
         </NavLink>
+        <SeletorTema escuroFundo className="mb-1 mt-1" />
         <VerComo aoTrocar={aoFechar} />
       </div>
     </div>
@@ -178,7 +180,7 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
     <header className="nao-imprimir sticky top-0 z-30 border-b border-linha bg-nevoa/92 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-2 px-2 md:px-4 lg:h-16 lg:gap-3 lg:px-8">
         <IconButton aria-label="Abrir menu" icone={<Menu size={20} aria-hidden />} onClick={abrirMenu} className="lg:hidden" />
-        <Link to="/" aria-label="Grupo AERO, ir para o início" className="rounded-campo lg:hidden"><Marca /></Link>
+        <Link to="/" aria-label="Aerobrasil Drones, ir para o início" className="rounded-campo lg:hidden"><MarcaCompacta /></Link>
 
         <button
           type="button" onClick={abrirBusca}
@@ -192,6 +194,7 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
         <div className="flex-1" />
 
         <IndicadorSync />
+        <BotaoTema className="max-sm:hidden" />
         <IconButton aria-label="Buscar" icone={<Search size={20} aria-hidden />} onClick={abrirBusca} className="lg:hidden" />
         <div className="hidden lg:block">
           <Button variante="secundario" icone={<QrCode size={17} aria-hidden />} onClick={() => abrirQR()}>Ler QR</Button>
@@ -226,7 +229,7 @@ const ATALHO_DIREITA: Record<Papel, AtalhoCel> = {
 
 function NavCelular({ papel, abrirMenu, abrirQR }: { papel: Papel; abrirMenu: () => void; abrirQR: () => void }) {
   const item = 'flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors'
-  const estado = ({ isActive }: { isActive: boolean }) => cx(item, isActive ? 'text-lavoura-escuro' : 'text-mata-suave')
+  const estado = ({ isActive }: { isActive: boolean }) => cx(item, isActive ? 'text-lavoura-texto' : 'text-mata-suave')
   const [e1, e2] = ATALHOS_CEL[papel]
   const d = ATALHO_DIREITA[papel]
   const Link1 = ({ a }: { a: AtalhoCel }) => <NavLink to={a.para} end={a.exato} className={estado}><a.icone size={20} aria-hidden />{a.rotulo}</NavLink>

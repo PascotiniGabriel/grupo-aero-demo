@@ -9,11 +9,11 @@ export function Indicador({ rotulo, valor, variacao, detalhe, cor, className }: 
   return (
     <div className={cx('rounded-painel border border-linha bg-papel p-4', className)}>
       <p className="text-sm text-mata-suave">{rotulo}</p>
-      <p className={cx('titulo num mt-1 text-2xl', cor === 'vermelho' && 'text-barro', cor === 'verde' && 'text-lavoura-escuro', cor === 'ambar' && 'text-[#7A5600]')}>{valor}</p>
+      <p className={cx('titulo num mt-1 text-xl sm:text-2xl', cor === 'vermelho' && 'text-barro-texto', cor === 'verde' && 'text-lavoura-texto', cor === 'ambar' && 'text-ambar-texto')}>{valor}</p>
       {(variacao !== undefined || detalhe) && (
         <p className="mt-1 flex items-center gap-1 text-xs text-mata-suave">
           {variacao !== undefined && (
-            <span className={cx('inline-flex items-center font-medium', sobe ? 'text-lavoura-escuro' : 'text-barro')}>
+            <span className={cx('inline-flex items-center font-medium', sobe ? 'text-lavoura-texto' : 'text-barro-texto')}>
               {sobe ? <ArrowUpRight size={14} aria-hidden /> : <ArrowDownRight size={14} aria-hidden />}
               {Math.abs(variacao).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
             </span>

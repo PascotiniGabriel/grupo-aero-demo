@@ -17,7 +17,7 @@ export function EtiquetaQR({ texto, legenda, sublegenda, tamanho = 132, classNam
   }, [texto, tamanho])
 
   return (
-    <figure className={cx('inline-flex flex-col items-center gap-1.5 rounded-painel border border-linha bg-white p-3 text-center', className)} style={{ width: tamanho + 26 }}>
+    <figure className={cx('folha-claro inline-flex flex-col items-center gap-1.5 rounded-painel border border-linha bg-white p-3 text-center', className)} style={{ width: tamanho + 26 }}>
       {url
         ? <img src={url} alt={`QR code de ${texto}`} width={tamanho} height={tamanho} className="block" />
         : <div style={{ width: tamanho, height: tamanho }} className="bg-nevoa" aria-hidden />}

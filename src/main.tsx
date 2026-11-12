@@ -5,6 +5,8 @@ import App from './App'
 import { aguardarHidratacao } from '@/store'
 import { pedirArmazenamentoPersistente } from '@/store/armazenamento'
 import { iniciarSync, useSync } from '@/lib/sync'
+import { iniciarTema } from '@/lib/tema'
+import { Marca } from '@/components/layout/Marca'
 
 function aguardarSync(): Promise<void> {
   if (useSync.persist.hasHydrated()) return Promise.resolve()
@@ -28,10 +30,17 @@ function Raiz() {
     return () => { vivo = false }
   }, [])
   if (!pronto) {
-    return <div role="status" className="flex min-h-dvh items-center justify-center text-sm text-mata-suave">Carregando os dados do aparelho…</div>
+    return (
+      <div role="status" className="flex min-h-dvh flex-col items-center justify-center gap-6 text-sm text-mata-suave">
+        <Marca largura={180} />
+        Carregando os dados do aparelho…
+      </div>
+    )
   }
   return <App />
 }
+
+iniciarTema()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

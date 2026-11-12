@@ -53,7 +53,7 @@ export default function OrcamentosLista() {
       render: (o) => <span className="inline-flex items-center gap-2">{nomeCliente(o)}{o.criadoPorIA && <SeloIA />}</span>,
     },
     { id: 'data', titulo: 'Data', valor: (o) => o.data, render: (o) => dataCurta(o.data) },
-    { id: 'validade', titulo: 'Validade', valor: (o) => o.validade, render: (o) => <span className={cx(vencido(o) && 'text-barro')}>{dataCurta(o.validade)}</span> },
+    { id: 'validade', titulo: 'Validade', valor: (o) => o.validade, render: (o) => <span className={cx(vencido(o) && 'text-barro-texto')}>{dataCurta(o.validade)}</span> },
     { id: 'total', titulo: 'Total', alinhar: 'direita', valor: (o) => totalOrcamento(o), render: (o) => <span className="num font-medium">{brl(totalOrcamento(o))}</span> },
     { id: 'status', titulo: 'Situação', valor: (o) => o.status, render: (o) => <SeloStatus tipo="orcamento" status={o.status} /> },
   ]

@@ -8,6 +8,7 @@ import {
 import { useStore, novoId } from '@/store'
 import { porId } from '@/store/selectors'
 import { brl, dataCurta, normalizar, numero } from '@/lib/format'
+import { ESTILO_TOOLTIP } from '@/lib/graficos'
 import type { Lancamento } from '@/types'
 
 type Aba = 'receber' | 'pagar' | 'resultado'
@@ -114,15 +115,15 @@ export default function Financeiro() {
         <div className="h-64" role="img" aria-label="Entradas e saídas por mês, com projeção dos próximos 30 dias">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={fluxo} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#DDE5E0" />
+              <CartesianGrid vertical={false} stroke="var(--color-linha)" />
               <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={12} />
               <YAxis tickFormatter={(v: number) => (v >= 1000 ? `${numero(v / 1000)} mil` : numero(v))} tickLine={false} axisLine={false} fontSize={12} width={48} />
-              <Tooltip formatter={(v) => brl(Number(v))} cursor={{ fill: 'rgba(16,35,28,0.05)' }} />
+              <Tooltip contentStyle={ESTILO_TOOLTIP} formatter={(v) => brl(Number(v))} cursor={{ fill: 'color-mix(in srgb, var(--color-mata) 7%, transparent)' }} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="entradas" name="Entradas" fill="#1F8A4C" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="entradas" name="Entradas" fill="var(--color-lavoura)" radius={[4, 4, 0, 0]}>
                 {fluxo.map((f) => <Cell key={f.mes} fillOpacity={f.projecao ? 0.45 : 1} />)}
               </Bar>
-              <Bar dataKey="saidas" name="Saídas" fill="#D99A00" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="saidas" name="Saídas" fill="var(--color-ambar)" radius={[4, 4, 0, 0]}>
                 {fluxo.map((f) => <Cell key={f.mes} fillOpacity={f.projecao ? 0.45 : 1} />)}
               </Bar>
             </BarChart>
@@ -166,12 +167,12 @@ export default function Financeiro() {
             <Painel titulo="Resultado simplificado" semPadding>
               <table className="w-full text-sm">
                 <tbody>
-                  <Grupo titulo="Receitas" linhas={dre.receitas} total={dre.tr} cor="text-lavoura-escuro" />
+                  <Grupo titulo="Receitas" linhas={dre.receitas} total={dre.tr} cor="text-lavoura-texto" />
                   <Grupo titulo="Despesas" linhas={dre.despesas} total={dre.td} cor="text-mata" />
                   <tr className="border-t-2 border-linha bg-nevoa">
                     <td className="px-4 py-3 font-semibold">Resultado do período</td>
                     <td className="px-4 py-3 text-right text-xs text-mata-suave">{dre.tr > 0 ? `${numero((dre.resultado / dre.tr) * 100, 1)}% da receita` : ''}</td>
-                    <td className={cx('num titulo px-4 py-3 text-right text-base', dre.resultado < 0 ? 'text-barro' : 'text-lavoura-escuro')}>{brl(dre.resultado)}</td>
+                    <td className={cx('num titulo px-4 py-3 text-right text-base', dre.resultado < 0 ? 'text-barro-texto' : 'text-lavoura-texto')}>{brl(dre.resultado)}</td>
                   </tr>
                 </tbody>
               </table>

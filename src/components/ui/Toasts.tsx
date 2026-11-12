@@ -27,7 +27,7 @@ export function useToast() { return toastApi }
 export { toastApi as toast }
 
 const ICONE = { sucesso: CheckCircle2, erro: AlertCircle, info: Info }
-const COR = { sucesso: 'text-lavoura', erro: 'text-barro', info: 'text-ceu' }
+const COR = { sucesso: 'text-lavoura-texto', erro: 'text-barro-texto', info: 'text-ceu' }
 
 /** Montar uma vez no AppShell. */
 export function Toasts() {

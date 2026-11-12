@@ -132,7 +132,7 @@ export function CompromissoGaveta({ aberta, aoFechar, inicial, tecnicoFixoId }: 
         </div>
 
         <Campo rotulo="Observações"><Textarea rows={3} value={f.observacoes ?? ''} onChange={(e) => set({ observacoes: e.target.value || undefined })} /></Campo>
-        {erro && <p role="alert" className="text-sm text-barro">{erro}</p>}
+        {erro && <p role="alert" className="text-sm text-barro-texto">{erro}</p>}
       </div>
     </Gaveta>
   )

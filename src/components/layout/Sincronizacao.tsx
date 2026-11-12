@@ -38,21 +38,21 @@ export function IndicadorSync() {
 
   let texto: string, curto: string, cor: string, icone
   if (sincronizando) {
-    texto = 'Sincronizando…'; curto = 'Sincronizando'; cor = 'border-ceu/40 bg-ceu-claro text-[#14578F]'
+    texto = 'Sincronizando…'; curto = 'Sincronizando'; cor = 'border-ceu/40 bg-ceu-claro text-ceu-texto'
     icone = <Loader2 size={15} className="animate-spin" aria-hidden />
   } else if (!online) {
     texto = `Sem internet · ${plural(pendentes, 'alteração salva', 'alterações salvas')} no aparelho`
     curto = pendentes > 0 ? `Sem internet · ${pendentes}` : 'Sem internet'
-    cor = 'border-ambar/50 bg-ambar-claro text-[#7A5600]'
+    cor = 'border-ambar/50 bg-ambar-claro text-ambar-texto'
     icone = <CloudOff size={15} aria-hidden />
   } else if (pendentes > 0) {
     texto = `Online · ${plural(pendentes, 'alteração', 'alterações')} para enviar`; curto = `${pendentes} para enviar`
-    cor = 'border-ceu/40 bg-ceu-claro text-[#14578F]'
+    cor = 'border-ceu/40 bg-ceu-claro text-ceu-texto'
     icone = <Wifi size={15} aria-hidden />
   } else {
     texto = 'Online · tudo sincronizado'; curto = 'Online'
     cor = 'border-linha bg-papel text-mata-suave'
-    icone = <Wifi size={15} className="text-lavoura" aria-hidden />
+    icone = <Wifi size={15} className="text-lavoura-texto" aria-hidden />
   }
 
   return (
@@ -85,7 +85,7 @@ function GavetaSync({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => voi
     <Gaveta aberta={aberta} aoFechar={aoFechar} titulo="Sincronização" largura="md">
       <div className="space-y-5">
         <div className={cx('flex items-center gap-3 rounded-painel border p-3', !online ? 'border-ambar/50 bg-ambar-claro' : 'border-linha bg-nevoa')}>
-          {sincronizando ? <Loader2 size={20} className="animate-spin text-ceu" aria-hidden /> : !online ? <CloudOff size={20} className="text-ambar" aria-hidden /> : <Wifi size={20} className="text-lavoura" aria-hidden />}
+          {sincronizando ? <Loader2 size={20} className="animate-spin text-ceu" aria-hidden /> : !online ? <CloudOff size={20} className="text-ambar-texto" aria-hidden /> : <Wifi size={20} className="text-lavoura-texto" aria-hidden />}
           <div className="min-w-0 flex-1">
             <p className="font-medium">{estado}</p>
             <p className="text-sm text-mata-suave">{plural(fila.length, 'alteração pendente', 'alterações pendentes')}</p>

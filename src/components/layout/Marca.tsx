@@ -1,24 +1,57 @@
+import type { CSSProperties } from 'react'
 import { cx } from '@/components/ui'
 
-/** Símbolo próprio da demo (um "A" em quadrado verde). */
-export function SimboloMarca({ tamanho = 30 }: { tamanho?: number }) {
+const BASE = import.meta.env.BASE_URL
+const LOGO = `${BASE}marca/logo.png`
+const SIMBOLO = `${BASE}marca/simbolo.png`
+const NOME = 'Aerobrasil Drones'
+
+/** Imagem preta com fundo transparente pintada na cor do texto (currentColor) por máscara. */
+function Mascara({ url, className, style, rotulo }: { url: string; className?: string; style?: CSSProperties; rotulo?: string }) {
   return (
-    <svg width={tamanho} height={tamanho} viewBox="0 0 32 32" aria-hidden className="shrink-0">
-      <rect width="32" height="32" rx="8" fill="#1F8A4C" />
-      <path d="M8.5 23 16 8.5 23.5 23" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12.6 19.2h6.8" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity=".55" />
-    </svg>
+    <span
+      role={rotulo ? 'img' : undefined} aria-label={rotulo} aria-hidden={rotulo ? undefined : true}
+      className={cx('inline-block shrink-0', className)}
+      style={{
+        backgroundColor: 'currentColor',
+        WebkitMaskImage: `url(${url})`, maskImage: `url(${url})`,
+        WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+        WebkitMaskPosition: 'center', maskPosition: 'center',
+        WebkitMaskSize: 'contain', maskSize: 'contain',
+        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact',
+        ...style,
+      }}
+    />
   )
 }
 
-export function Marca({ clara, className }: { clara?: boolean; className?: string }) {
+/** Só o símbolo, na cor do texto ao redor. */
+export function SimboloMarca({ tamanho = 30, className, rotulo }: { tamanho?: number; className?: string; rotulo?: string }) {
+  return <Mascara url={SIMBOLO} className={className} style={{ width: tamanho, height: tamanho }} rotulo={rotulo} />
+}
+
+/** Logo completa na cor do texto ao redor (`clara` = branca, para a barra escura). */
+export function Marca({ clara, largura = 150, className }: { clara?: boolean; largura?: number; className?: string }) {
   return (
-    <span className={cx('inline-flex items-center gap-2.5', className)}>
-      <SimboloMarca />
-      <span className="flex flex-col leading-none">
-        <span className={cx('titulo text-[17px] tracking-tight', clara ? 'text-white' : 'text-mata')} style={{ fontStretch: '118%' }}>Grupo AERO</span>
-        <span className={cx('mt-1 text-xs', clara ? 'text-white/55' : 'text-mata-suave')}>Gestão</span>
-      </span>
+    <Mascara
+      url={LOGO} rotulo={NOME}
+      className={cx(clara ? 'text-white' : 'text-mata', className)}
+      style={{ width: largura, aspectRatio: '1200 / 726' }}
+    />
+  )
+}
+
+/** Versão do cabeçalho do celular: símbolo e nome. */
+export function MarcaCompacta({ className }: { className?: string }) {
+  return (
+    <span className={cx('inline-flex items-center gap-1 text-mata', className)} role="img" aria-label={NOME}>
+      <SimboloMarca tamanho={36} />
+      <span aria-hidden className="titulo text-[17px] tracking-tight" style={{ fontStretch: '118%' }}>Aerobrasil</span>
     </span>
   )
+}
+
+/** Logo em <img> (preta): para documentos impressos, onde fundo e máscara podem ser descartados. */
+export function LogoDocumento({ altura = 56, className }: { altura?: number; className?: string }) {
+  return <img src={LOGO} alt={NOME} style={{ height: altura, width: 'auto' }} className={cx('block', className)} />
 }

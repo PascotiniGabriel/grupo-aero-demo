@@ -10,7 +10,7 @@ export function ChipsModelos({ ids, max, className }: { ids: string[]; max?: num
   return (
     <span className={cx('inline-flex flex-wrap gap-1', className)}>
       {mostrar.map((id) => (
-        <span key={id} className="rounded bg-ceu-claro px-1.5 py-0.5 text-xs font-medium text-[#14578F]">
+        <span key={id} className="rounded bg-ceu-claro px-1.5 py-0.5 text-xs font-medium text-ceu-texto">
           {modelos.find((m) => m.id === id)?.nome ?? id.toUpperCase()}
         </span>
       ))}

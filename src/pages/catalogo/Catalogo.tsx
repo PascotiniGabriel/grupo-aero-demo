@@ -83,7 +83,7 @@ export default function Catalogo() {
             Ocultar preços no documento
           </label>
         </div>
-        <div className="folha-impressao overflow-x-auto rounded-painel border border-linha bg-white">
+        <div className="folha-impressao overflow-x-auto rounded-painel border border-linha bg-papel">
           <FolhaCatalogo modelo={modelo} pecas={pecas} ocultarPrecos={ocultarPrecos} />
         </div>
       </>

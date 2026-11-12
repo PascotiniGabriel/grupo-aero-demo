@@ -62,7 +62,7 @@ export default function OSQuadro() {
     { id: 'drone', titulo: 'Drone', render: (o) => { const e = porId(equipamentos, o.equipamentoId); return e ? `${nomeModelo(e.modeloId, modelos)} · ${e.serial}` : '-' } },
     { id: 'onde', titulo: 'Atendimento', valor: (o) => o.atendimento ?? 'oficina', render: (o) => (o.atendimento === 'campo' ? <span className="inline-flex items-center gap-1 text-ceu"><MapPin size={14} />Campo</span> : 'Oficina'), ocultarMobile: true },
     { id: 'tec', titulo: 'Técnico', valor: (o) => o.tecnico, render: (o) => o.tecnico, ocultarMobile: true },
-    { id: 'prev', titulo: 'Previsão', valor: (o) => o.previsao, render: (o) => <span className={cx('num', atrasada(o) && 'text-barro')}>{dataCurta(o.previsao)}</span> },
+    { id: 'prev', titulo: 'Previsão', valor: (o) => o.previsao, render: (o) => <span className={cx('num', atrasada(o) && 'text-barro-texto')}>{dataCurta(o.previsao)}</span> },
     { id: 'st', titulo: 'Status', valor: (o) => STATUS_ORDEM.indexOf(o.status), render: (o) => <SeloStatus tipo="os" status={o.status} /> },
   ]
 
@@ -90,7 +90,7 @@ export default function OSQuadro() {
         <div role="group" aria-label="Forma de exibição" className="ml-auto flex rounded-campo border border-linha bg-papel p-0.5">
           {([['quadro', 'Quadro', LayoutGrid], ['lista', 'Lista', List]] as const).map(([id, rot, Ic]) => (
             <button key={id} type="button" onClick={() => setVisao(id)} aria-pressed={visao === id}
-              className={cx('inline-flex h-10 items-center gap-1.5 rounded-[5px] px-3 text-sm font-medium', visao === id ? 'bg-mata text-white' : 'text-mata-suave hover:text-mata')}>
+              className={cx('inline-flex h-10 items-center gap-1.5 rounded-[5px] px-3 text-sm font-medium', visao === id ? 'bg-forte text-white' : 'text-mata-suave hover:text-mata')}>
               <Ic size={16} />{rot}
             </button>
           ))}
@@ -127,16 +127,16 @@ export default function OSQuadro() {
                             <div className="flex items-center justify-between gap-2">
                               <span className="num text-sm font-semibold">OS {o.numero}</span>
                               <span className="flex items-center gap-1.5 text-mata-suave">
-                                {o.atendimento === 'campo' && <span title="Atendimento em campo" className="inline-flex items-center gap-0.5 rounded-full bg-ceu-claro px-1.5 text-xs font-medium text-[#14578F]"><MapPin size={12} />Campo</span>}
+                                {o.atendimento === 'campo' && <span title="Atendimento em campo" className="inline-flex items-center gap-0.5 rounded-full bg-ceu-claro px-1.5 text-xs font-medium text-ceu-texto"><MapPin size={12} />Campo</span>}
                                 {o.fotos.length > 0 && <span title={`${o.fotos.length} fotos`} className="inline-flex items-center gap-0.5 text-xs"><Camera size={14} /><span className="num">{o.fotos.length}</span></span>}
-                                {o.relatorio && <span title="Tem relatório"><FileText size={14} className="text-lavoura" /></span>}
+                                {o.relatorio && <span title="Tem relatório"><FileText size={14} className="text-lavoura-texto" /></span>}
                               </span>
                             </div>
                             <p className="mt-1 text-sm font-medium">{porId(clientes, o.clienteId)?.nome}</p>
                             <p className="text-sm text-mata-suave">{eq ? <>{nomeModelo(eq.modeloId, modelos)} · <span className="serial text-xs">{eq.serial}</span></> : '-'}</p>
                             <p className="mt-2 flex items-center justify-between text-xs text-mata-suave">
                               <span>{o.tecnico}</span>
-                              <span className={cx('num', atrasada(o) && 'font-semibold text-barro')}>{atrasada(o) ? 'Atrasada · ' : ''}{dataCurta(o.previsao)}</span>
+                              <span className={cx('num', atrasada(o) && 'font-semibold text-barro-texto')}>{atrasada(o) ? 'Atrasada · ' : ''}{dataCurta(o.previsao)}</span>
                             </p>
                           </Link>
                           <Select value={o.status} aria-label={`Mover OS ${o.numero} para`} onChange={(e) => mover(o, e.target.value as StatusOS)} className="mt-2 h-10 text-sm lg:hidden">

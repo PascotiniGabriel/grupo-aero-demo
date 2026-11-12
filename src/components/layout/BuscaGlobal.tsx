@@ -127,7 +127,7 @@ function Paleta({ fechar }: { fechar: () => void }) {
   let grupoAnterior = ''
   return (
     <div className="nao-imprimir fixed inset-0 z-50 flex items-start justify-center sm:px-4 sm:pt-[10vh]" role="presentation">
-      <div className="absolute inset-0 bg-mata/50" onClick={fechar} aria-hidden />
+      <div className="absolute inset-0 bg-barra/50" onClick={fechar} aria-hidden />
       <div role="dialog" aria-modal="true" aria-label="Busca" className="anim-entrar relative flex max-h-dvh w-full flex-col bg-papel shadow-2xl sm:max-h-[70vh] sm:max-w-xl sm:rounded-painel">
         <div className="flex items-center gap-3 border-b border-linha px-4">
           <Search size={18} className="shrink-0 text-mata-suave" aria-hidden />

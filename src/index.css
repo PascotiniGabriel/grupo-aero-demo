@@ -1,24 +1,87 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-tema="escuro"], [data-tema="escuro"] *));
+
 @theme {
   --color-nevoa: #F3F6F4;
   --color-papel: #FFFFFF;
   --color-mata: #10231C;
   --color-mata-suave: #4B5F56;
   --color-mata-claro: #1B3A2E;
+  --color-barra: #10231C;
+  --color-forte: #10231C;
+  --color-serie-escura: #10231C;
   --color-lavoura: #1F8A4C;
   --color-lavoura-escuro: #17703D;
   --color-lavoura-claro: #E3F3EA;
+  --color-lavoura-texto: #17703D;
   --color-ceu: #1E78C8;
   --color-ceu-claro: #E4F0FA;
+  --color-ceu-texto: #14578F;
   --color-ambar: #D99A00;
   --color-ambar-claro: #FCF3DB;
+  --color-ambar-texto: #7A5600;
   --color-barro: #C8402F;
   --color-barro-claro: #FBE7E4;
+  --color-barro-texto: #9A2D20;
   --color-linha: #DDE5E0;
   --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
   --radius-campo: 6px;
   --radius-painel: 10px;
+}
+
+/* Tema escuro: só redefine os tokens. A barra lateral usa --color-barra e os botões fortes --color-forte. */
+:root { color-scheme: light; }
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --color-nevoa: #0E1714;
+  --color-papel: #15211C;
+  --color-mata: #E6EEEA;
+  --color-mata-suave: #9DB0A7;
+  --color-mata-claro: #C9D8D1;
+  --color-barra: #0A110E;
+  --color-forte: #2C4A3D;
+  --color-serie-escura: #8FA79B;
+  --color-lavoura: #1F8A4C;
+  --color-lavoura-escuro: #17703D;
+  --color-lavoura-claro: #143324;
+  --color-lavoura-texto: #4CC27D;
+  --color-ceu: #4DA3EA;
+  --color-ceu-claro: #13293D;
+  --color-ceu-texto: #8CC4F2;
+  --color-ambar: #E3A91A;
+  --color-ambar-claro: #33290D;
+  --color-ambar-texto: #F0C45A;
+  --color-barro: #D14B3A;
+  --color-barro-claro: #3A1C18;
+  --color-barro-texto: #F2958A;
+  --color-linha: #2A3B34;
+}
+/* Folhas de documento (orçamento, relatório, catálogo, etiqueta) ficam sempre claras. */
+:root[data-tema="escuro"] .folha-claro {
+  color-scheme: light;
+  --color-nevoa: #F3F6F4;
+  --color-papel: #FFFFFF;
+  --color-mata: #10231C;
+  --color-mata-suave: #4B5F56;
+  --color-mata-claro: #1B3A2E;
+  --color-barra: #10231C;
+  --color-forte: #10231C;
+  --color-serie-escura: #10231C;
+  --color-lavoura: #1F8A4C;
+  --color-lavoura-escuro: #17703D;
+  --color-lavoura-claro: #E3F3EA;
+  --color-lavoura-texto: #17703D;
+  --color-ceu: #1E78C8;
+  --color-ceu-claro: #E4F0FA;
+  --color-ceu-texto: #14578F;
+  --color-ambar: #D99A00;
+  --color-ambar-claro: #FCF3DB;
+  --color-ambar-texto: #7A5600;
+  --color-barro: #C8402F;
+  --color-barro-claro: #FBE7E4;
+  --color-barro-texto: #9A2D20;
+  --color-linha: #DDE5E0;
 }
 
 @layer base {
@@ -53,8 +116,33 @@
 
 
 @media print {
+  :root, :root[data-tema="escuro"] {
+    color-scheme: light;
+  --color-nevoa: #F3F6F4;
+  --color-papel: #FFFFFF;
+  --color-mata: #10231C;
+  --color-mata-suave: #4B5F56;
+  --color-mata-claro: #1B3A2E;
+  --color-barra: #10231C;
+  --color-forte: #10231C;
+  --color-serie-escura: #10231C;
+  --color-lavoura: #1F8A4C;
+  --color-lavoura-escuro: #17703D;
+  --color-lavoura-claro: #E3F3EA;
+  --color-lavoura-texto: #17703D;
+  --color-ceu: #1E78C8;
+  --color-ceu-claro: #E4F0FA;
+  --color-ceu-texto: #14578F;
+  --color-ambar: #D99A00;
+  --color-ambar-claro: #FCF3DB;
+  --color-ambar-texto: #7A5600;
+  --color-barro: #C8402F;
+  --color-barro-claro: #FBE7E4;
+  --color-barro-texto: #9A2D20;
+  --color-linha: #DDE5E0;
+  }
   @page { size: A4; margin: 12mm; }
-  html, body { background: #fff !important; }
+  html, body { background: #fff !important; color: #000 !important; }
   .nao-imprimir { display: none !important; }
   .casca-app { display: block !important; }
   .casca-app > aside, .casca-app > header, .casca-app nav { display: none !important; }

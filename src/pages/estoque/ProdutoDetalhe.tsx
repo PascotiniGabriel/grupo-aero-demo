@@ -7,6 +7,7 @@ import { EtiquetaQR } from '@/components/qr/EtiquetaQR'
 import { useLeitorQR } from '@/components/qr/LeitorQR'
 import { useStore } from '@/store'
 import { brl, dataHora, numero, peso } from '@/lib/format'
+import { ESTILO_TOOLTIP } from '@/lib/graficos'
 import { GRUPOS, ehExclusiva, pesoCubadoKg, situacaoEstoque } from './comum'
 import { FormularioPeca } from './FormularioPeca'
 import { MovimentoModal } from './MovimentoModal'
@@ -162,11 +163,11 @@ export default function ProdutoDetalhe() {
               <div className="h-52" role="img" aria-label="Gráfico de saídas por mês">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={porMes} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                    <CartesianGrid stroke="#DDE5E0" vertical={false} />
-                    <XAxis dataKey="mes" tickLine={false} axisLine={{ stroke: '#DDE5E0' }} tick={{ fontSize: 12, fill: '#4B5F57' }} />
+                    <CartesianGrid stroke="var(--color-linha)" vertical={false} />
+                    <XAxis dataKey="mes" tickLine={false} axisLine={{ stroke: 'var(--color-linha)' }} tick={{ fontSize: 12, fill: '#4B5F57' }} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#4B5F57' }} />
-                    <Tooltip cursor={{ fill: 'rgba(16,35,28,0.05)' }} formatter={(v) => [`${v} un.`, 'Saídas']} />
-                    <Bar dataKey="saidas" fill="#1F8A4C" radius={[4, 4, 0, 0]} />
+                    <Tooltip contentStyle={ESTILO_TOOLTIP} cursor={{ fill: 'color-mix(in srgb, var(--color-mata) 7%, transparent)' }} formatter={(v) => [`${v} un.`, 'Saídas']} />
+                    <Bar dataKey="saidas" fill="var(--color-lavoura)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -193,7 +194,7 @@ export default function ProdutoDetalhe() {
 
           <div className="grid content-start gap-4">
             <Painel titulo="Estoque">
-              <p className={`titulo num text-4xl ${situ === 'zerado' ? 'text-barro' : situ === 'abaixo' ? 'text-[#7A5600]' : ''}`}>{numero(p.estoque)}</p>
+              <p className={`titulo num text-4xl ${situ === 'zerado' ? 'text-barro-texto' : situ === 'abaixo' ? 'text-ambar-texto' : ''}`}>{numero(p.estoque)}</p>
               <p className="mt-1 text-sm text-mata-suave">Mínimo: <span className="num">{numero(p.estoqueMinimo)}</span> un.</p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-mata/[0.08]" aria-hidden>
                 <div className={`h-full ${situ === 'ok' ? 'bg-lavoura' : situ === 'abaixo' ? 'bg-ambar' : 'bg-barro'}`} style={{ width: `${Math.min(100, (p.estoque / Math.max(1, p.estoqueMinimo * 2)) * 100)}%` }} />
@@ -220,7 +221,7 @@ export default function ProdutoDetalhe() {
                     {p.seriais.map((s) => (
                       <li key={s} className="flex items-center justify-between gap-2 rounded-campo bg-nevoa px-3 py-1.5">
                         <span className="serial truncate text-sm">{s}</span>
-                        <button type="button" aria-label={`Remover serial ${s}`} onClick={() => removerSerial(s)} className="grid size-10 shrink-0 place-items-center text-mata-suave hover:text-barro"><X size={16} /></button>
+                        <button type="button" aria-label={`Remover serial ${s}`} onClick={() => removerSerial(s)} className="grid size-10 shrink-0 place-items-center text-mata-suave hover:text-barro-texto"><X size={16} /></button>
                       </li>
                     ))}
                   </ul>
@@ -249,7 +250,7 @@ export default function ProdutoDetalhe() {
               )}
             </Painel>
 
-            <Button variante="fantasma" icone={<Trash2 size={16} />} onClick={() => setExcluir(true)} className="text-barro">Excluir peça</Button>
+            <Button variante="fantasma" icone={<Trash2 size={16} />} onClick={() => setExcluir(true)} className="text-barro-texto">Excluir peça</Button>
           </div>
         </div>
       </div>

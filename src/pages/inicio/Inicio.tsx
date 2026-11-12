@@ -7,6 +7,7 @@ import { useStore } from '@/store'
 import { usePapel } from '@/components/layout/nav'
 import { porId, saidasPorProduto } from '@/store/selectors'
 import { brl, dataCurta, numero } from '@/lib/format'
+import { ESTILO_TOOLTIP } from '@/lib/graficos'
 import type { StatusOS } from '@/types'
 import { contaVencidos, diasMs, listarVendas, somaVendas, vendasPorMes, type Periodo } from './calculos'
 
@@ -188,7 +189,7 @@ export default function Inicio() {
         </div>
       )}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <section className="ia-borda rounded-painel p-4">
             <div className="mb-3 flex items-center gap-2"><SeloIA>Leitura da IA</SeloIA><span className="text-xs text-mata-suave">calculada com os dados de hoje</span></div>
@@ -216,7 +217,7 @@ export default function Inicio() {
                     <button type="button" onClick={() => navegar(`/estoque/${p.id}`)} className="block min-h-11 w-full rounded-campo px-1 py-1 text-left hover:bg-nevoa">
                       <div className="flex items-baseline justify-between gap-3 text-sm">
                         <span className="truncate">{p.nome}</span>
-                        <span className="shrink-0 text-xs text-mata-suave">estoque <span className={cx('num font-medium', p.estoque < p.estoqueMinimo ? 'text-barro' : 'text-mata')}>{numero(p.estoque)}</span></span>
+                        <span className="shrink-0 text-xs text-mata-suave">estoque <span className={cx('num font-medium', p.estoque < p.estoqueMinimo ? 'text-barro-texto' : 'text-mata')}>{numero(p.estoque)}</span></span>
                       </div>
                       <div className="mt-1 flex items-center gap-2">
                         <div className="h-2.5 flex-1 rounded-full bg-mata/[0.06]"><div className="h-2.5 rounded-full bg-lavoura" style={{ width: `${(q / d.top[0].q) * 100}%` }} /></div>
@@ -233,14 +234,14 @@ export default function Inicio() {
             <div className="h-64" role="img" aria-label="Vendas fechadas por mês, separado em drones, peças e serviços">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={d.meses} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#DDE5E0" />
+                  <CartesianGrid vertical={false} stroke="var(--color-linha)" />
                   <XAxis dataKey="mes" tickLine={false} axisLine={false} fontSize={12} />
                   <YAxis tickFormatter={tickBrl} tickLine={false} axisLine={false} fontSize={12} width={48} />
-                  <Tooltip formatter={(v) => brl(Number(v))} cursor={{ fill: 'rgba(16,35,28,0.05)' }} />
+                  <Tooltip contentStyle={ESTILO_TOOLTIP} formatter={(v) => brl(Number(v))} cursor={{ fill: 'color-mix(in srgb, var(--color-mata) 7%, transparent)' }} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="drones" name="Drones" stackId="a" fill="#10231C" />
-                  <Bar dataKey="pecas" name="Peças" stackId="a" fill="#1F8A4C" />
-                  <Bar dataKey="servicos" name="Serviços" stackId="a" fill="#1E78C8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="drones" name="Drones" stackId="a" fill="var(--color-serie-escura)" />
+                  <Bar dataKey="pecas" name="Peças" stackId="a" fill="var(--color-lavoura)" />
+                  <Bar dataKey="servicos" name="Serviços" stackId="a" fill="var(--color-ceu)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -266,7 +267,7 @@ export default function Inicio() {
           )}
           {(gestor || estoque) && <section className={cx('rounded-painel border bg-papel', d.abaixo.length ? 'border-ambar' : 'border-linha')}>
             <header className="flex items-center gap-2 border-b border-linha px-4 py-3">
-              <AlertTriangle size={16} className={d.abaixo.length ? 'text-ambar' : 'text-mata-suave'} aria-hidden />
+              <AlertTriangle size={16} className={d.abaixo.length ? 'text-ambar-texto' : 'text-mata-suave'} aria-hidden />
               <h2 className="text-base">Abaixo do mínimo</h2>
               <span className="num ml-auto rounded-full bg-ambar-claro px-2 text-xs font-medium">{d.abaixo.length}</span>
             </header>
@@ -277,7 +278,7 @@ export default function Inicio() {
                     <Link to={`/estoque/${p.id}`} className="block min-h-11 px-4 py-2.5 hover:bg-nevoa">
                       <div className="flex items-baseline justify-between gap-3 text-sm">
                         <span className="truncate">{p.nome}</span>
-                        <span className="num shrink-0 text-barro">{numero(p.estoque)} / {numero(p.estoqueMinimo)}</span>
+                        <span className="num shrink-0 text-barro-texto">{numero(p.estoque)} / {numero(p.estoqueMinimo)}</span>
                       </div>
                       <p className="mt-0.5 text-xs text-mata-suave">Comprar {numero(comprar)}{dura ? `, dura ~${numero(dura)} dias` : ''}</p>
                     </Link>
@@ -297,14 +298,14 @@ export default function Inicio() {
                 </div>
               ))}
             </div>
-            <h3 className="mt-4 flex items-center gap-1.5 text-sm text-barro"><Wrench size={14} aria-hidden />Atrasadas ({d.atrasadas.length})</h3>
+            <h3 className="mt-4 flex items-center gap-1.5 text-sm text-barro-texto"><Wrench size={14} aria-hidden />Atrasadas ({d.atrasadas.length})</h3>
             {d.atrasadas.length === 0 ? <p className="mt-1 text-sm text-mata-suave">Nenhuma OS atrasada.</p> : (
               <ul className="mt-1 divide-y divide-linha">
                 {d.atrasadas.map((o) => (
                   <li key={o.id}>
                     <Link to={`/os/${o.id}`} className="flex min-h-11 items-center justify-between gap-2 py-1.5 text-sm hover:text-ceu">
                       <span className="truncate">OS {o.numero} · {porId(modelos, porId(equipamentos, o.equipamentoId)?.modeloId)?.nome ?? ''}</span>
-                      <span className="flex shrink-0 items-center gap-2 text-xs text-barro">previsto {dataCurta(o.previsao)}<SeloStatus tipo="os" status={o.status} /></span>
+                      <span className="flex shrink-0 items-center gap-2 text-xs text-barro-texto">previsto {dataCurta(o.previsao)}<SeloStatus tipo="os" status={o.status} /></span>
                     </Link>
                   </li>
                 ))}
@@ -314,7 +315,7 @@ export default function Inicio() {
         </div>
       </div>
 
-      {(gestor || estoque) && <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      {(gestor || estoque) && <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
         <Painel titulo="Peças paradas" acoes={<span className="text-xs text-mata-suave">sem saída há 90+ dias</span>}>
           {d.paradas.length === 0 ? <EstadoVazio icone={<PackageX size={28} />} titulo="Nenhuma peça parada" /> : (
             <>

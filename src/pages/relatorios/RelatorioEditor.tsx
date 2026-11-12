@@ -21,7 +21,7 @@ function Passo({ n, titulo, children }: { n: number; titulo: string; children: R
   return (
     <Painel>
       <div className="mb-3 flex items-center gap-2.5">
-        <span className="num inline-flex h-7 w-7 items-center justify-center rounded-full bg-mata text-sm font-semibold text-white">{n}</span>
+        <span className="num inline-flex h-7 w-7 items-center justify-center rounded-full bg-forte text-sm font-semibold text-white">{n}</span>
         <h2 className="text-base">{titulo}</h2>
       </div>
       {children}

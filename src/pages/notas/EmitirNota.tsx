@@ -103,7 +103,7 @@ export default function EmitirNota({ aoFechar }: { aoFechar: () => void }) {
           <ol className="space-y-2 rounded-painel bg-nevoa p-3" aria-live="polite">
             {ETAPAS.map((e, i) => (
               <li key={e} className={cx('flex items-center gap-2 text-sm', i > etapa && 'text-mata-suave')}>
-                {i < etapa || concluido ? <Check size={16} className="text-lavoura" aria-hidden /> : i === etapa ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <span className="size-4" />}
+                {i < etapa || concluido ? <Check size={16} className="text-lavoura-texto" aria-hidden /> : i === etapa ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <span className="size-4" />}
                 {e}
               </li>
             ))}

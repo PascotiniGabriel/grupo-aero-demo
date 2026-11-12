@@ -103,7 +103,7 @@ export default function Agenda() {
           const sel = k === dia
           return (
             <button key={k} type="button" aria-pressed={sel} onClick={() => setDia(k)}
-              className={cx('flex min-h-14 flex-col items-center justify-center rounded-campo border text-xs transition-colors', sel ? 'border-mata bg-mata text-white' : k === hoje ? 'border-lavoura bg-lavoura-claro' : 'border-linha bg-papel hover:bg-nevoa')}>
+              className={cx('flex min-h-14 flex-col items-center justify-center rounded-campo border text-xs transition-colors', sel ? 'border-forte bg-forte text-white' : k === hoje ? 'border-lavoura bg-lavoura-claro' : 'border-linha bg-papel hover:bg-nevoa')}>
               <span className="capitalize">{nomeDia(d)}</span>
               <span className="num text-base font-semibold">{d.getDate()}</span>
               <span className={cx('num text-[11px]', !sel && 'text-mata-suave')}>{qtd > 0 ? `${qtd} ${qtd === 1 ? 'item' : 'itens'}` : ' '}</span>
@@ -179,7 +179,7 @@ function Obrigacoes({ tecnico, propria, compromissos, aoMarcar }: {
                     <span><span className="num font-medium">OS {o.numero}</span> · {nomeCli(o.clienteId)}</span>
                     <span className="flex items-center gap-2">
                       <SeloStatus tipo="os" status={o.status} />
-                      <span className={cx('num text-xs', atrasada(o) ? 'font-semibold text-barro' : 'text-mata-suave')}>{atrasada(o) ? 'Atrasada · ' : ''}{dataCurta(o.previsao)}</span>
+                      <span className={cx('num text-xs', atrasada(o) ? 'font-semibold text-barro-texto' : 'text-mata-suave')}>{atrasada(o) ? 'Atrasada · ' : ''}{dataCurta(o.previsao)}</span>
                     </span>
                   </Link>
                 </li>

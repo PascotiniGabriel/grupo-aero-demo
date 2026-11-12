@@ -30,7 +30,7 @@ export function Modal({ aberto, aoFechar, titulo, children, rodape, largura = 'm
   if (!aberto) return null
   return createPortal(
     <div className="nao-imprimir fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="presentation">
-      <div className="absolute inset-0 bg-mata/50" onClick={aoFechar} aria-hidden />
+      <div className="absolute inset-0 bg-barra/50" onClick={aoFechar} aria-hidden />
       <div
         ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={typeof titulo === 'string' ? titulo : undefined}
         className={cx('anim-entrar relative flex max-h-[92dvh] w-full flex-col rounded-t-painel bg-papel shadow-2xl outline-none sm:rounded-painel', LARG[largura])}

@@ -156,7 +156,7 @@ export function FormularioPeca({ aberta, aoFechar, produto, codigoInicial, aoSal
           </Campo>
           <div className="flex flex-col justify-end pb-2 text-sm">
             <span className="text-mata-suave">Margem</span>
-            <span className={cx('num font-medium', margem !== null && margem < 20 ? 'text-barro' : 'text-lavoura-escuro')}>
+            <span className={cx('num font-medium', margem !== null && margem < 20 ? 'text-barro-texto' : 'text-lavoura-texto')}>
               {margem === null ? '—' : `${margem.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% (${brl(precoN - custoN)})`}
             </span>
           </div>

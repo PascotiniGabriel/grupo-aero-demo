@@ -11,11 +11,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icone.svg'],
+      includeAssets: ['favicon.svg', 'icone.svg', 'marca/logo.png', 'marca/simbolo.png'],
       manifest: {
-        name: 'Grupo AERO',
-        short_name: 'AERO',
-        description: 'Gestão de vendas, oficina e estoque do Grupo AERO (demonstração).',
+        name: 'Aerobrasil Gestão',
+        short_name: 'Aerobrasil',
+        description: 'Gestão de vendas, oficina e estoque da Aerobrasil Drones (demonstração).',
         lang: 'pt-BR',
         theme_color: '#10231C',
         background_color: '#F3F6F4',

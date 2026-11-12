@@ -61,7 +61,7 @@ export function VerComo({ aoTrocar }: { aoTrocar?: () => void }) {
               className="flex min-h-10 w-full items-center gap-2 rounded-campo px-2.5 py-1.5 text-left text-sm hover:bg-nevoa"
             >
               <span className="min-w-0 flex-1 truncate">{u.nome.split(' ')[0]}<span className="ml-2 text-xs text-mata-suave">{u.papel}</span></span>
-              {u.id === atual.id && <Check size={15} className="shrink-0 text-lavoura" aria-hidden />}
+              {u.id === atual.id && <Check size={15} className="shrink-0 text-lavoura-texto" aria-hidden />}
             </button>
           ))}
         </div>

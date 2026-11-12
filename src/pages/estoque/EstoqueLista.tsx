@@ -88,7 +88,7 @@ export default function EstoqueLista() {
         const s = situacaoEstoque(p)
         return (
           <span className="inline-flex flex-col items-end gap-0.5">
-            <span className={cx('num font-semibold', s === 'zerado' && 'text-barro', s === 'abaixo' && 'text-[#7A5600]')}>{numero(p.estoque)}</span>
+            <span className={cx('num font-semibold', s === 'zerado' && 'text-barro-texto', s === 'abaixo' && 'text-ambar-texto')}>{numero(p.estoque)}</span>
             <span className="text-xs text-mata-suave">mín. {numero(p.estoqueMinimo)}</span>
             {s === 'zerado' && <Selo cor="vermelho">Zerado</Selo>}
             {s === 'abaixo' && <Selo cor="ambar">Abaixo do mínimo</Selo>}

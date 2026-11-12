@@ -27,7 +27,7 @@ export function AIPensando({ etapas, ativa, intervaloMs = 650, className }: {
         return (
           <li key={e} className={cx('flex items-center gap-2.5', !feita && !corrente && 'text-mata-suave/60')}>
             <span className="flex h-5 w-5 shrink-0 items-center justify-center" aria-hidden>
-              {feita ? <Check size={16} className="text-lavoura" /> : corrente ? <Loader2 size={16} className="animate-spin text-ceu" /> : <span className="h-1.5 w-1.5 rounded-full bg-linha" />}
+              {feita ? <Check size={16} className="text-lavoura-texto" /> : corrente ? <Loader2 size={16} className="animate-spin text-ceu" /> : <span className="h-1.5 w-1.5 rounded-full bg-linha" />}
             </span>
             <span className={cx(corrente && 'font-medium')}>{e}</span>
           </li>

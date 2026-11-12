@@ -335,9 +335,9 @@ function Editor({ id }: { id?: string }) {
                 placeholder="Escreva ou fale: cliente, peças, serviços, quantidades, frete..." sugestoes={SUGESTOES} linhas={3} enviarComEnter={false}
               />
               <AIPensando ativa={gerando} etapas={ETAPAS_IA} />
-              {!gerando && resumoIA && <p className="anim-entrar mt-2 flex items-center gap-2 text-sm text-mata-suave"><Check size={16} className="text-lavoura" aria-hidden />{resumoIA}</p>}
+              {!gerando && resumoIA && <p className="anim-entrar mt-2 flex items-center gap-2 text-sm text-mata-suave"><Check size={16} className="text-lavoura-texto" aria-hidden />{resumoIA}</p>}
               {avisos.map((a) => (
-                <p key={a} className="mt-1 flex items-start gap-2 rounded-campo bg-ambar-claro px-3 py-2 text-sm text-[#5C4200]"><AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />{a}</p>
+                <p key={a} className="mt-1 flex items-start gap-2 rounded-campo bg-ambar-claro px-3 py-2 text-sm text-ambar-texto"><AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />{a}</p>
               ))}
             </section>
 
@@ -374,8 +374,8 @@ function Editor({ id }: { id?: string }) {
                 {pendentes.map((p) => (
                   <li key={p.id} className="anim-entrar mb-2 rounded-campo bg-ambar-claro p-3">
                     <div className="mb-2 flex items-start gap-2 text-sm">
-                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-ambar" aria-hidden />
-                      <p className="min-w-0 flex-1 text-[#5C4200]">Não encontrei "{p.texto}" — escolher peça</p>
+                      <AlertTriangle size={16} className="mt-0.5 shrink-0 text-ambar-texto" aria-hidden />
+                      <p className="min-w-0 flex-1 text-ambar-texto">Não encontrei "{p.texto}" — escolher peça</p>
                       <IconButton aria-label="Descartar" icone={<X size={16} />} onClick={() => setPendentes((l) => l.filter((x) => x.id !== p.id))} />
                     </div>
                     <BuscaItem
@@ -393,8 +393,8 @@ function Editor({ id }: { id?: string }) {
                         <p className="text-sm font-medium">{i.descricao}</p>
                         <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-mata-suave">
                           {i.tipo === 'servico' ? 'Serviço' : i.tipo === 'drone' ? 'Drone' : prod ? `${prod.sku} · ${peso(prod.pesoG * i.quantidade)}` : 'Peça'}
-                          {naoServe && <span className="font-medium text-[#7A5600]">Não serve no {modeloNome}</span>}
-                          {prod && status !== 'aprovado' && prod.estoque < i.quantidade && <span className="font-medium text-barro">Estoque: {prod.estoque}</span>}
+                          {naoServe && <span className="font-medium text-ambar-texto">Não serve no {modeloNome}</span>}
+                          {prod && status !== 'aprovado' && prod.estoque < i.quantidade && <span className="font-medium text-barro-texto">Estoque: {prod.estoque}</span>}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -471,7 +471,7 @@ function Editor({ id }: { id?: string }) {
               </dl>
 
               {faltas.length > 0 && (
-                <div className="mt-3 rounded-campo bg-barro-claro p-3 text-sm text-barro" role="alert">
+                <div className="mt-3 rounded-campo bg-barro-claro p-3 text-sm text-barro-texto" role="alert">
                   <p className="flex items-center gap-1.5 font-medium"><AlertTriangle size={16} aria-hidden />Estoque insuficiente</p>
                   <ul className="mt-1 list-disc pl-5">
                     {faltas.map((f) => <li key={f.item.id}>{f.item.descricao}: pedido {f.item.quantidade}, em estoque {f.disponivel}</li>)}
@@ -503,7 +503,7 @@ function Editor({ id }: { id?: string }) {
         <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 flex items-center gap-3 border-t border-linha bg-papel px-4 py-2 lg:hidden">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-mata-suave">{rasc.itens.length} {rasc.itens.length === 1 ? 'item' : 'itens'}{pesoG > 0 ? ` · ${peso(pesoG)}` : ''}</p>
-            <p className={cx('titulo num truncate text-lg', faltas.length > 0 && 'text-barro')}>{brl(total)}</p>
+            <p className={cx('titulo num truncate text-lg', faltas.length > 0 && 'text-barro-texto')}>{brl(total)}</p>
           </div>
           <Button icone={<Save size={16} />} onClick={() => persistir(status, 'Orçamento salvo')}>Salvar</Button>
         </div>

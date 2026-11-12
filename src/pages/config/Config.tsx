@@ -12,6 +12,7 @@ import { usoDeArmazenamento } from '@/store/armazenamento'
 import { useVerComo } from '@/components/layout/VerComo'
 import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
 import { usePapel } from '@/components/layout/nav'
+import { SeletorTema } from '@/components/layout/Tema'
 
 type Aba = 'empresa' | 'usuarios' | 'offline' | 'ia' | 'dados'
 const ABAS: { id: Aba; rotulo: string }[] = [
@@ -93,6 +94,10 @@ function AbaUsuarios() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <Painel titulo="Tema da tela" className="lg:col-span-2">
+        <p className="mb-3 text-sm text-mata-suave">Escolha claro, escuro ou deixe o sistema decidir. Vale só neste aparelho. A impressão sai sempre em fundo branco.</p>
+        <SeletorTema className="max-w-md" />
+      </Painel>
       <Painel titulo="Usuários" semPadding>
         <ul className="divide-y divide-linha">
           {usuarios.map((u) => {
@@ -243,14 +248,14 @@ function AbaIA() {
                   {modelos.map((m) => <option key={m} value={m}>{m}</option>)}
                 </Select>
               </Campo>
-              {semChave && <p className="text-sm text-ambar" role="status">Sem a chave, o sistema continua usando a IA simulada.</p>}
+              {semChave && <p className="text-sm text-ambar-texto" role="status">Sem a chave, o sistema continua usando a IA simulada.</p>}
               <div className="flex flex-wrap items-center gap-2">
                 <Button variante="ia" icone={<CheckCircle2 size={16} />} loading={testando} disabled={semChave} onClick={() => void testar()}>Testar conexão</Button>
                 <span className="text-xs text-mata-suave">Salva a configuração e envia uma pergunta curta ao Gemini.</span>
               </div>
               {teste && (
                 <div role="status" className={cx('flex items-start gap-2 rounded-campo border px-3 py-2.5 text-sm',
-                  teste.ok ? 'border-lavoura/30 bg-lavoura-claro text-lavoura-escuro' : 'border-barro/30 bg-barro-claro text-[#9A2D20]')}>
+                  teste.ok ? 'border-lavoura/30 bg-lavoura-claro text-lavoura-texto' : 'border-barro/30 bg-barro-claro text-barro-texto')}>
                   {teste.ok ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" aria-hidden /> : <XCircle size={16} className="mt-0.5 shrink-0" aria-hidden />}
                   <span>{teste.texto}</span>
                 </div>
@@ -273,7 +278,7 @@ function AbaIA() {
           </p>
         </Painel>
         <div className="flex gap-3 rounded-painel border border-ambar/40 bg-ambar-claro p-4 text-sm">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-ambar" aria-hidden />
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-ambar-texto" aria-hidden />
           <div className="space-y-1.5">
             <p className="font-medium">A chave fica só neste navegador</p>
             <p>Ela não é enviada para nenhum servidor da empresa. Não use um computador compartilhado. Com o Gemini ligado, trechos dos dados consultados são enviados ao Google; na demonstração eles são fictícios.</p>

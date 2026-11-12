@@ -91,7 +91,7 @@ export default function OSDetalhe() {
                 <button
                   type="button" onClick={() => mover(os, s as StatusOS)} aria-current={atual ? 'step' : undefined}
                   className={cx('flex min-h-11 w-full items-center justify-center gap-1.5 rounded-campo border px-2 text-center text-xs font-medium transition-colors',
-                    atual ? 'border-lavoura bg-lavoura text-white' : feito ? 'border-lavoura/40 bg-lavoura-claro text-lavoura-escuro' : 'border-linha text-mata-suave hover:bg-nevoa')}
+                    atual ? 'border-lavoura bg-lavoura text-white' : feito ? 'border-lavoura/40 bg-lavoura-claro text-lavoura-texto' : 'border-linha text-mata-suave hover:bg-nevoa')}
                 >
                   {feito && <Check size={14} />}{ROTULO_COLUNA[s]}
                 </button>
@@ -103,7 +103,7 @@ export default function OSDetalhe() {
           <div><p className="text-xs text-mata-suave">Cliente</p>{cliente ? <Link className="font-medium text-ceu hover:underline" to={`/clientes/${cliente.id}`}>{cliente.nome}</Link> : '-'}</div>
           <div><p className="text-xs text-mata-suave">Drone</p>{eq && cliente ? <Link className="font-medium text-ceu hover:underline" to={`/clientes/${cliente.id}`}>{nomeModelo(eq.modeloId, modelos)} · <span className="serial text-xs">{eq.serial}</span></Link> : '-'}</div>
           <div><p className="text-xs text-mata-suave">Técnico</p><p className="font-medium">{os.tecnico || '-'}</p></div>
-          <div><p className="text-xs text-mata-suave">Previsão</p><p className={cx('num font-medium', atrasada(os) && 'text-barro')}>{dataCurta(os.previsao)}{atrasada(os) ? ' (atrasada)' : ''}</p></div>
+          <div><p className="text-xs text-mata-suave">Previsão</p><p className={cx('num font-medium', atrasada(os) && 'text-barro-texto')}>{dataCurta(os.previsao)}{atrasada(os) ? ' (atrasada)' : ''}</p></div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
           {proxAgenda ? (
@@ -115,7 +115,7 @@ export default function OSDetalhe() {
         </div>
         {anteriores.length > 0 && (
           <div className="mt-4 flex gap-2 rounded-campo bg-ambar-claro p-3 text-sm" role="note">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-ambar" />
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-ambar-texto" />
             <p>
               Este drone já foi atendido {anteriores.length} {anteriores.length === 1 ? 'vez' : 'vezes'}:{' '}
               {anteriores.map((a, i) => (

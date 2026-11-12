@@ -3,6 +3,7 @@ import { Pencil, Sparkles } from 'lucide-react'
 import { Button, Input, Textarea, cx } from '@/components/ui'
 import { dataCurta, numero } from '@/lib/format'
 import type { SecaoRelatorio } from '@/lib/ai/relatorio'
+import { Marca } from '@/components/layout/Marca'
 import type { Cliente, Empresa, Equipamento, FotoOS, ModeloDrone, OrdemServico, Produto, RelatorioOS } from '@/types'
 
 type CampoTexto = SecaoRelatorio
@@ -103,7 +104,8 @@ export function DocumentoRelatorio({ os, cliente, equipamento, modelo, empresa, 
     <article className="folha-impressao rounded-painel border border-linha bg-papel p-5 sm:p-8" aria-label="Relatório de manutenção">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-mata pb-4">
         <div>
-          <p className="titulo text-lg">{empresa.nome}</p>
+          <Marca largura={120} className="mb-1" />
+          <p className="sr-only">{empresa.nome}</p>
           <p className="text-xs text-mata-suave">CNPJ {empresa.cnpj} · {empresa.cidade} · {empresa.fone}</p>
         </div>
         <div className="text-right">

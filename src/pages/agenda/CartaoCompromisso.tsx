@@ -34,7 +34,7 @@ export function CartaoCompromisso({ c, destaque, rotuloDestaque, mostrarTecnico,
 
   return (
     <article className={cx('rounded-painel border bg-papel p-4', destaque ? 'border-2 border-lavoura' : 'border-linha', c.status === 'concluido' && 'opacity-80')}>
-      {rotuloDestaque && <p className="mb-2 text-xs font-semibold text-lavoura-escuro">{rotuloDestaque}</p>}
+      {rotuloDestaque && <p className="mb-2 text-xs font-semibold text-lavoura-texto">{rotuloDestaque}</p>}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="num flex items-center gap-1.5 text-sm font-semibold"><Clock size={15} aria-hidden />{faixaHora(c)}</p>

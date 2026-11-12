@@ -5,6 +5,7 @@ import { Avatar, Button, CampoBusca, Selo, cx } from '@/components/ui'
 import { brl, normalizar } from '@/lib/format'
 import { buscarCatalogo, type OpcaoItem } from '@/lib/ai/orcamento'
 import { nomeModelo } from '@/store/selectors'
+import { LogoDocumento } from '@/components/layout/Marca'
 
 /** yyyy-mm-dd de um ISO. */
 export const paraInput = (iso: string | undefined) => (iso ? iso.slice(0, 10) : '')
@@ -53,9 +54,9 @@ export function BuscaItem({ modeloId, produtos, servicos, aoEscolher, aoLerQR, p
                   <span className="block truncate text-sm font-medium">{o.nome}</span>
                   <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-mata-suave">
                     {o.tipo === 'servico' ? <Selo>Serviço</Selo> : o.tipo === 'drone' ? <Selo cor="azul">Drone</Selo> : null}
-                    {o.estoque !== undefined && <span className={cx(o.estoque === 0 && 'text-barro')}>{o.estoque === 0 ? 'Sem estoque' : `${o.estoque} em estoque`}</span>}
-                    {o.compat === true && <span className="font-medium text-lavoura-escuro">Serve no {modeloNome}</span>}
-                    {o.compat === false && <span className="font-medium text-[#7A5600]">Não serve no {modeloNome}</span>}
+                    {o.estoque !== undefined && <span className={cx(o.estoque === 0 && 'text-barro-texto')}>{o.estoque === 0 ? 'Sem estoque' : `${o.estoque} em estoque`}</span>}
+                    {o.compat === true && <span className="font-medium text-lavoura-texto">Serve no {modeloNome}</span>}
+                    {o.compat === false && <span className="font-medium text-ambar-texto">Não serve no {modeloNome}</span>}
                   </span>
                 </span>
                 <span className="num shrink-0 text-sm">{brl(o.preco)}</span>
@@ -135,10 +136,11 @@ export interface DadosProposta {
 export function Proposta({ d, empresa }: { d: DadosProposta; empresa: { nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string } }) {
   const dt = (iso: string) => new Date(iso).toLocaleDateString('pt-BR')
   return (
-    <article className="mx-auto max-w-[800px] bg-white p-6 text-[13px] leading-snug text-black print:p-0">
+    <article className="folha-claro mx-auto max-w-[800px] bg-white p-6 text-[13px] leading-snug text-black print:p-0">
       <header className="flex items-start justify-between gap-4 border-b-2 border-black pb-3">
         <div>
-          <h1 className="titulo text-xl">{empresa.nome}</h1>
+          <LogoDocumento altura={64} className="mb-1" />
+          <h1 className="sr-only">{empresa.nome}</h1>
           <p>CNPJ {empresa.cnpj}</p>
           <p>{empresa.endereco} · {empresa.cidade}</p>
           <p>{empresa.fone} · {empresa.email}</p>

@@ -19,7 +19,7 @@ interface Props {
 
 interface Estilo { stroke: string; fill: string; w: number }
 
-const TRACO = '#10231C'
+const TRACO = 'var(--color-mata)'
 const GUIA = '#8FA79B'
 const CORNERS: [number, number][] = [[-1, -1], [1, -1], [-1, 1], [1, 1]]
 
@@ -36,9 +36,9 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
   const altura = oito ? 710 : 655
 
   function estiloDe(g: GrupoDiagrama): Estilo {
-    if (ativo === g) return { stroke: '#1F8A4C', fill: '#DDF1E5', w: 2.6 }
-    if (realce === g) return { stroke: '#1E78C8', fill: '#E1EEF9', w: 2.4 }
-    return { stroke: TRACO, fill: '#FFFFFF', w: 1.8 }
+    if (ativo === g) return { stroke: 'var(--color-lavoura)', fill: 'var(--color-lavoura-claro)', w: 2.6 }
+    if (realce === g) return { stroke: 'var(--color-ceu)', fill: 'var(--color-ceu-claro)', w: 2.4 }
+    return { stroke: TRACO, fill: 'var(--color-papel)', w: 1.8 }
   }
 
   function teclado(g: GrupoDiagrama) {
@@ -65,8 +65,8 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
       >
         <title>{`${NUMERO_GRUPO[g]}. ${nomes[g]}`}</title>
         {desenho(e)}
-        {ancora && <line x1={ancora[0]} y1={ancora[1]} x2={rotulo[0]} y2={rotulo[1]} stroke={marcado ? '#1F8A4C' : hover ? '#1E78C8' : TRACO} strokeWidth={1.2} />}
-        <circle cx={rotulo[0]} cy={rotulo[1]} r={17} fill={marcado ? '#1F8A4C' : hover ? '#1E78C8' : '#FFFFFF'} stroke={marcado ? '#1F8A4C' : hover ? '#1E78C8' : TRACO} strokeWidth={1.6} />
+        {ancora && <line x1={ancora[0]} y1={ancora[1]} x2={rotulo[0]} y2={rotulo[1]} stroke={marcado ? 'var(--color-lavoura)' : hover ? 'var(--color-ceu)' : TRACO} strokeWidth={1.2} />}
+        <circle cx={rotulo[0]} cy={rotulo[1]} r={17} fill={marcado ? 'var(--color-lavoura)' : hover ? 'var(--color-ceu)' : 'var(--color-papel)'} stroke={marcado ? 'var(--color-lavoura)' : hover ? 'var(--color-ceu)' : TRACO} strokeWidth={1.6} />
         <text x={rotulo[0]} y={rotulo[1] + 6.5} textAnchor="middle" fontSize={18} fontWeight={600} fill={marcado || hover ? '#FFFFFF' : TRACO} style={{ fontVariantNumeric: 'tabular-nums', pointerEvents: 'none' }}>
           {NUMERO_GRUPO[g]}
         </text>
@@ -96,7 +96,7 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
 
   return (
     <svg viewBox={`160 0 590 ${altura}`} className="block h-auto w-full" role="group" aria-label={`Vista explodida do Agras ${nomeModelo}`}>
-      <style>{`.parte-svg:focus-visible{outline:2px solid #1E78C8;outline-offset:3px;border-radius:4px}@media (prefers-reduced-motion:no-preference){.parte-svg *{transition:stroke .15s,fill .15s}}`}</style>
+      <style>{`.parte-svg:focus-visible{outline:2px solid var(--color-ceu);outline-offset:3px;border-radius:4px}@media (prefers-reduced-motion:no-preference){.parte-svg *{transition:stroke .15s,fill .15s}}`}</style>
 
       <g transform="translate(0,40)">
         {/* linhas-guia e carcaça (não clicáveis) */}
@@ -117,7 +117,7 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
             </g>
           ))}
         </g>
-        <rect x={375} y={180} width={150} height={130} rx={20} fill="none" stroke="#DDE5E0" strokeWidth={2} aria-hidden />
+        <rect x={375} y={180} width={150} height={130} rx={20} fill="none" stroke="var(--color-linha)" strokeWidth={2} aria-hidden />
 
         {/* braços */}
         {parte('braco', [TR.ini[0] + (TR.fim[0] - TR.ini[0]) * 0.55, TR.ini[1] + (TR.fim[1] - TR.ini[1]) * 0.55 + 5], [600, 192], (e) => (
@@ -169,7 +169,7 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
                 <g key={`${i}-${j}`} transform={`rotate(${ang} ${h[0]} ${h[1]})`}>
                   <ellipse cx={h[0]} cy={h[1]} rx={46} ry={6.5} fill={e.fill} stroke={e.stroke} strokeWidth={e.w} {...pa} />
                   <ellipse cx={h[0]} cy={h[1]} rx={46} ry={6.5} fill="none" stroke="none" />
-                  <circle cx={h[0]} cy={h[1]} r={6} fill="#FFFFFF" stroke={e.stroke} strokeWidth={1.4} />
+                  <circle cx={h[0]} cy={h[1]} r={6} fill="var(--color-papel)" stroke={e.stroke} strokeWidth={1.4} />
                   <circle cx={h[0]} cy={h[1]} r={2} fill={e.stroke} />
                 </g>
               )
@@ -251,8 +251,8 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
           <>
             <line x1={366} y1={395} x2={354} y2={440} stroke={e.stroke} strokeWidth={5} {...pa} />
             <line x1={534} y1={395} x2={546} y2={440} stroke={e.stroke} strokeWidth={5} {...pa} />
-            <line x1={366} y1={395} x2={354} y2={440} stroke={e.fill === '#FFFFFF' ? '#FFFFFF' : e.fill} strokeWidth={2.4} />
-            <line x1={534} y1={395} x2={546} y2={440} stroke={e.fill === '#FFFFFF' ? '#FFFFFF' : e.fill} strokeWidth={2.4} />
+            <line x1={366} y1={395} x2={354} y2={440} stroke={e.fill === 'var(--color-papel)' ? 'var(--color-papel)' : e.fill} strokeWidth={2.4} />
+            <line x1={534} y1={395} x2={546} y2={440} stroke={e.fill === 'var(--color-papel)' ? 'var(--color-papel)' : e.fill} strokeWidth={2.4} />
             <rect x={330} y={440} width={240} height={10} rx={5} fill={e.fill} stroke={e.stroke} strokeWidth={e.w} {...pa} />
           </>
         ))}
@@ -260,7 +260,7 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
 
       {/* controle remoto e carregador, fora da aeronave */}
       <g transform={`translate(0,${linhaInferior})`}>
-        <line x1={170} y1={-14} x2={740} y2={-14} stroke="#DDE5E0" strokeWidth={1.4} aria-hidden />
+        <line x1={170} y1={-14} x2={740} y2={-14} stroke="var(--color-linha)" strokeWidth={1.4} aria-hidden />
         {parte('controle', [350, 62], [392, 62], (e) => (
           <>
             <rect x={222} y={0} width={8} height={26} rx={3} fill={e.fill} stroke={e.stroke} strokeWidth={e.w} {...pa} />
@@ -281,8 +281,8 @@ export function Diagrama({ rotores, nomeModelo, ativo, realce, contagem, nomes, 
             <path d="M640 92 C664 92 666 112 690 106" fill="none" stroke={e.stroke} strokeWidth={2} {...pa} />
           </>
         ))}
-        <text x={296} y={128} textAnchor="middle" fontSize={13} fill="#4B5F57" aria-hidden>Controle remoto</text>
-        <text x={555} y={128} textAnchor="middle" fontSize={13} fill="#4B5F57" aria-hidden>Carregador</text>
+        <text x={296} y={128} textAnchor="middle" fontSize={13} fill="var(--color-mata-suave)" aria-hidden>Controle remoto</text>
+        <text x={555} y={128} textAnchor="middle" fontSize={13} fill="var(--color-mata-suave)" aria-hidden>Carregador</text>
       </g>
     </svg>
   )

@@ -52,14 +52,14 @@ function Balao({ m, ultima, aoPerguntar, bloqueado }: { m: MensagemChat; ultima:
   if (m.papel === 'usuario') {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[88%] whitespace-pre-wrap rounded-painel rounded-br-sm bg-mata px-4 py-2.5 text-[15px] leading-relaxed text-white sm:max-w-[75%]">{m.texto}</p>
+        <p className="max-w-[88%] whitespace-pre-wrap rounded-painel rounded-br-sm bg-forte px-4 py-2.5 text-[15px] leading-relaxed text-white sm:max-w-[75%]">{m.texto}</p>
       </div>
     )
   }
   return (
     <div data-msg={m.id} className="flex min-w-0 max-w-full flex-col gap-3 sm:max-w-[92%]">
       <div><SeloIA>Assistente</SeloIA></div>
-      <Markdown texto={m.texto} className={m.erro ? 'text-barro' : undefined} />
+      <Markdown texto={m.texto} className={m.erro ? 'text-barro-texto' : undefined} />
       {m.links && m.links.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {m.links.map((l) => (

@@ -141,7 +141,7 @@ export default function Funil() {
                         </p>
                         <p className="mt-0.5 flex items-center gap-1 text-xs text-mata-suave"><MapPin size={12} aria-hidden />{l.cidade}/{l.uf}</p>
                         <p className="mt-2 text-sm leading-snug">{l.interesse}</p>
-                        <p className={cx('mt-2 flex items-start gap-1.5 text-xs', atrasada(l) ? 'font-medium text-barro' : 'text-mata-suave')}>
+                        <p className={cx('mt-2 flex items-start gap-1.5 text-xs', atrasada(l) ? 'font-medium text-barro-texto' : 'text-mata-suave')}>
                           <CalendarClock size={14} className="mt-px shrink-0" aria-hidden />
                           <span>{l.proximaAcao} · {atrasada(l) ? 'atrasada, ' : ''}{relativo(l.proximaData)}</span>
                         </p>
@@ -164,7 +164,7 @@ export default function Funil() {
         aberta={!!editando} aoFechar={fechar} titulo={ehNovo ? 'Novo contato' : editando?.nome || 'Contato'}
         rodape={editando && (
           <>
-            {!ehNovo && <Button variante="fantasma" icone={<Trash2 size={16} />} onClick={() => setExcluir(true)} className="mr-auto text-barro">Excluir</Button>}
+            {!ehNovo && <Button variante="fantasma" icone={<Trash2 size={16} />} onClick={() => setExcluir(true)} className="mr-auto text-barro-texto">Excluir</Button>}
             {!ehNovo && <Button variante="secundario" icone={<FilePlus2 size={16} />} onClick={() => navegar(`/orcamentos/novo?lead=${editando.id}`)}>Gerar orçamento</Button>}
             <Button onClick={gravar}>{ehNovo ? 'Criar contato' : 'Salvar'}</Button>
           </>

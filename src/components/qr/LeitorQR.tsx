@@ -216,7 +216,7 @@ function ModoCamera({ aoLer, irPara }: { aoLer: (c: string) => void; irPara: (m:
   }
   return (
     <div className="flex flex-col gap-2">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-painel bg-mata">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-painel bg-barra">
         <video ref={video} playsInline muted className="h-full w-full object-cover" />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
           <div className="relative h-[58%] aspect-square">
@@ -258,7 +258,7 @@ function ModoFoto({ aoLer }: { aoLer: (c: string) => void }) {
         <span className="max-w-xs text-sm text-mata-suave">Serve foto tirada agora ou uma que já está na galeria, como as que chegam pelo WhatsApp.</span>
       </button>
       <input ref={arquivo} type="file" accept="image/*" hidden onChange={(e) => { void escolher(e.target.files?.[0]); e.target.value = '' }} />
-      {erro && <p role="alert" className="text-sm text-barro">{erro}</p>}
+      {erro && <p role="alert" className="text-sm text-barro-texto">{erro}</p>}
     </div>
   )
 }
@@ -394,7 +394,7 @@ function ResultadoProduto({ produto, serial, ir }: { produto: Produto; serial?: 
             <dd><ChipsModelos ids={produto.modelosCompativeis} /></dd>
           </div>
         </dl>
-        {baixo && <p className="mt-3 text-xs text-[#7A5600]">Abaixo do mínimo de {numero(produto.estoqueMinimo)} un.</p>}
+        {baixo && <p className="mt-3 text-xs text-ambar-texto">Abaixo do mínimo de {numero(produto.estoqueMinimo)} un.</p>}
       </div>
 
       {mov ? (

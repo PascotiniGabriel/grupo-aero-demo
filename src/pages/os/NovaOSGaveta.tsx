@@ -96,7 +96,7 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
         <div role="group" aria-label="Onde será o atendimento" className="flex rounded-campo border border-linha bg-papel p-0.5">
           {([['oficina', 'Oficina'], ['campo', 'Campo']] as const).map(([id, rot]) => (
             <button key={id} type="button" aria-pressed={atendimento === id} onClick={() => setAtendimento(id)}
-              className={`h-10 flex-1 rounded-[5px] text-sm font-medium ${atendimento === id ? 'bg-mata text-white' : 'text-mata-suave hover:text-mata'}`}>{rot}</button>
+              className={`h-10 flex-1 rounded-[5px] text-sm font-medium ${atendimento === id ? 'bg-forte text-white' : 'text-mata-suave hover:text-mata'}`}>{rot}</button>
           ))}
         </div>
         {atendimento === 'campo' && (
@@ -118,7 +118,7 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
             <Input type="date" value={previsao} onChange={(e) => setPrevisao(e.target.value)} />
           </Campo>
         </div>
-        {erro && <p role="alert" className="text-sm text-barro">{erro}</p>}
+        {erro && <p role="alert" className="text-sm text-barro-texto">{erro}</p>}
       </div>
     </Gaveta>
   )

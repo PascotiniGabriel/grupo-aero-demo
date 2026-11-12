@@ -122,7 +122,7 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
                     <p className="text-sm font-medium">{i.descricao}</p>
                     <p className="text-xs text-mata-suave">
                       {i.tipo === 'peca' ? 'Peça' : 'Serviço'}
-                      {p && <span className={cx('ml-2', p.estoque < i.quantidade && 'font-semibold text-barro')}> · {p.estoque} em estoque{p.estoque < i.quantidade ? ' (insuficiente)' : ''}</span>}
+                      {p && <span className={cx('ml-2', p.estoque < i.quantidade && 'font-semibold text-barro-texto')}> · {p.estoque} em estoque{p.estoque < i.quantidade ? ' (insuficiente)' : ''}</span>}
                     </p>
                   </div>
                   <label className="flex items-center gap-1.5 text-xs text-mata-suave">Qtd.

@@ -23,7 +23,7 @@ export function Gaveta({ aberta, aoFechar, titulo, children, rodape, largura = '
   if (!aberta) return null
   return createPortal(
     <div className="nao-imprimir fixed inset-0 z-50 flex justify-end" role="presentation">
-      <div className="absolute inset-0 bg-mata/50" onClick={aoFechar} aria-hidden />
+      <div className="absolute inset-0 bg-barra/50" onClick={aoFechar} aria-hidden />
       <aside
         ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={typeof titulo === 'string' ? titulo : undefined}
         className={cx('anim-deslizar relative flex h-full w-full flex-col bg-papel shadow-2xl outline-none', LARG[largura])}

@@ -92,7 +92,7 @@ export function AIComposer({
               type="button" onClick={alternarDitado} disabled={bloqueado} aria-pressed={ditado.ouvindo}
               aria-label={ditado.ouvindo ? 'Parar ditado' : 'Ditar por voz'} title={ditado.ouvindo ? 'Parar ditado' : 'Ditar por voz'}
               className={cx('inline-flex h-10 shrink-0 items-center gap-2 rounded-campo px-2.5 text-sm font-medium transition-colors disabled:opacity-50',
-                ditado.ouvindo ? 'bg-barro-claro text-[#9A2D20]' : 'text-mata-suave hover:bg-mata/5 hover:text-mata')}
+                ditado.ouvindo ? 'bg-barro-claro text-barro-texto' : 'text-mata-suave hover:bg-mata/5 hover:text-mata')}
             >
               {ditado.ouvindo ? <Square size={15} fill="currentColor" aria-hidden /> : <Mic size={18} aria-hidden />}
               {ditado.ouvindo && <span className="anim-pulso">Ouvindo, pode falar</span>}
@@ -120,7 +120,7 @@ export function AIComposer({
         </div>
       </div>
 
-      <p className={cx('text-xs text-barro', !ditado.erro && 'sr-only')} aria-live="polite">{ditado.erro}</p>
+      <p className={cx('text-xs text-barro-texto', !ditado.erro && 'sr-only')} aria-live="polite">{ditado.erro}</p>
 
       {!!sugestoes?.length && !carregando && (
         <div className="flex flex-wrap gap-2">

@@ -2,6 +2,7 @@ import { useStore } from '@/store'
 import { brl, dataCurta } from '@/lib/format'
 import type { GrupoDiagrama, ModeloDrone, Produto } from '@/types'
 import { GRUPOS, ORDEM_GRUPOS } from '../estoque/comum'
+import { LogoDocumento } from '@/components/layout/Marca'
 
 /** Documento do catálogo de peças para enviar ao cliente (fica dentro de `.folha-impressao`). */
 export function FolhaCatalogo({ modelo, pecas, ocultarPrecos }: { modelo: ModeloDrone; pecas: Produto[]; ocultarPrecos: boolean }) {
@@ -15,10 +16,11 @@ export function FolhaCatalogo({ modelo, pecas, ocultarPrecos }: { modelo: Modelo
   ].filter((s) => s.itens.length > 0)
 
   return (
-    <div className="mx-auto max-w-[210mm] bg-white p-8 text-[13px] text-black print:p-0">
+    <div className="folha-claro mx-auto max-w-[210mm] bg-white p-8 text-[13px] text-black print:p-0">
       <section className="flex min-h-[220mm] flex-col justify-between border-b-2 border-black pb-10" style={{ breakAfter: 'page' }}>
         <div>
-          <p className="text-sm uppercase tracking-wide">{empresa.nome}</p>
+          <LogoDocumento altura={96} className="mb-2" />
+          <p className="sr-only">{empresa.nome}</p>
           <p className="mt-1 text-xs">CNPJ {empresa.cnpj} · {empresa.cidade} · {empresa.fone}</p>
         </div>
         <div>
