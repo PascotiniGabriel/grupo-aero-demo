@@ -1,16 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ExternalLink, Eye, EyeOff, Info, Plus, RotateCcw, Trash2, XCircle } from 'lucide-react'
 import {
   Abas, Button, Campo, CabecalhoPagina, Confirmar, IconButton, Input, Painel, Select, Selo, SeloIA, toast, cx,
 } from '@/components/ui'
 import { useStore } from '@/store'
 import { chamarGemini, lerConfigIA, salvarConfigIA, type ConfigIA } from '@/lib/ai'
-import type { Empresa, Usuario } from '@/types'
+import type { Empresa } from '@/types'
+import { VISAO_POR_PAPEL } from '@/lib/acesso'
+import { useOnline, useSync } from '@/lib/sync'
+import { usoDeArmazenamento } from '@/store/armazenamento'
+import { useVerComo } from '@/components/layout/VerComo'
+import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
+import { usePapel } from '@/components/layout/nav'
 
-type Aba = 'empresa' | 'usuarios' | 'ia' | 'dados'
+type Aba = 'empresa' | 'usuarios' | 'offline' | 'ia' | 'dados'
 const ABAS: { id: Aba; rotulo: string }[] = [
   { id: 'empresa', rotulo: 'Empresa' },
   { id: 'usuarios', rotulo: 'Usuários' },
+  { id: 'offline', rotulo: 'Uso sem internet' },
   { id: 'ia', rotulo: 'Inteligência artificial' },
   { id: 'dados', rotulo: 'Dados da demonstração' },
 ]
@@ -79,17 +86,9 @@ function AbaEmpresa() {
 
 // ------------------------------------------------------------------ Usuários
 
-const VISAO: Record<Usuario['papel'], string> = {
-  Gestor: 'Vê tudo: painel, financeiro, notas fiscais, relatórios e configurações.',
-  Vendas: 'Funil, orçamentos, clientes e conversas. Não vê o financeiro completo.',
-  Técnico: 'Ordens de serviço, relatórios de manutenção, catálogo e consulta de peças.',
-  Estoque: 'Peças, movimentações, notas de entrada e inventário.',
-}
-
 function AbaUsuarios() {
-  const usuarios = useStore((s) => s.usuarios)
-  const atualId = useStore((s) => s.usuarioAtualId)
-  const definir = useStore((s) => s.definirUsuario)
+  const { usuarios, atual: usuarioAtual, trocar } = useVerComo()
+  const atualId = usuarioAtual?.id
   const papeis = Array.from(new Set(usuarios.map((u) => u.papel)))
 
   return (
@@ -105,8 +104,8 @@ function AbaUsuarios() {
                   <p className="text-sm text-mata-suave">{u.papel}</p>
                 </div>
                 {atual ? <Selo cor="verde" icone={<CheckCircle2 size={12} />}>Usuário atual</Selo> : (
-                  <Button variante="secundario" tamanho="sm" onClick={() => { definir(u.id); toast.sucesso(`Agora você usa o sistema como ${u.nome} (${u.papel})`) }}>
-                    Usar como este usuário
+                  <Button variante="secundario" tamanho="sm" onClick={() => trocar(u.id)}>
+                    Ver como este usuário
                   </Button>
                 )}
               </li>
@@ -117,12 +116,50 @@ function AbaUsuarios() {
       <Painel titulo="O que cada papel vê">
         <dl className="space-y-3 text-sm">
           {papeis.map((p) => (
-            <div key={p}><dt className="font-medium">{p}</dt><dd className="text-mata-suave">{VISAO[p]}</dd></div>
+            <div key={p}><dt className="font-medium">{p}</dt><dd className="text-mata-suave">{VISAO_POR_PAPEL[p]}</dd></div>
           ))}
         </dl>
         <p className="mt-4 flex items-start gap-2 border-t border-linha pt-3 text-xs text-mata-suave">
-          <Info size={14} className="mt-px shrink-0" aria-hidden />Nesta demonstração todas as telas continuam abertas. No sistema final, cada papel enxerga só o que precisa.
+          <Info size={14} className="mt-px shrink-0" aria-hidden />Cada setor vê só o que é do trabalho dele. Use Ver como, na barra lateral, para mostrar a visão de cada papel.
         </p>
+      </Painel>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ Uso sem internet
+
+function fmtMB(b: number) {
+  return b >= 1024 * 1024 * 1024 ? `${(b / 1024 / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} GB` : `${(b / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB`
+}
+
+function AbaOffline() {
+  const online = useOnline()
+  const pendentes = useSync((s) => s.fila.length)
+  const [uso, setUso] = useState<Awaited<ReturnType<typeof usoDeArmazenamento>>>(null)
+  useEffect(() => { void usoDeArmazenamento().then(setUso) }, [pendentes])
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <Painel titulo="Trabalhar sem sinal">
+        <div className="space-y-3 text-sm text-mata-suave">
+          <p>O sistema abre e funciona mesmo sem internet, inclusive depois de instalado no celular. Tudo que você faz (fotos, ordens de serviço, relatórios, estoque) fica gravado no aparelho na hora.</p>
+          <p>Se a bateria acabar, nada se perde: quando o celular ligar e tiver sinal, o envio continua de onde parou. Ao voltar a internet, as alterações pendentes são enviadas sozinhas.</p>
+          <p>Nesta demonstração o servidor é simulado, mas a gravação no aparelho é real.</p>
+        </div>
+        <div className="mt-4 max-w-sm">
+          <InterruptorOffline />
+          <p className="mt-2 text-xs text-mata-suave">Liga o modo sem internet para testar: faça alterações, depois desligue para ver a sincronização.</p>
+        </div>
+      </Painel>
+      <Painel titulo="Situação agora">
+        <dl className="space-y-2 text-sm">
+          <div className="flex justify-between gap-3 border-b border-linha py-2"><dt className="text-mata-suave">Conexão</dt><dd className="font-medium">{online ? 'Online' : 'Sem internet'}</dd></div>
+          <div className="flex justify-between gap-3 border-b border-linha py-2"><dt className="text-mata-suave">Alterações a enviar</dt><dd className="num font-medium">{plural(pendentes, 'alteração', 'alterações')}</dd></div>
+          <div className="flex justify-between gap-3 border-b border-linha py-2"><dt className="text-mata-suave">Espaço usado no aparelho</dt><dd className="num font-medium">{uso ? fmtMB(uso.usado) : 'indisponível'}</dd></div>
+          {uso && uso.total > 0 && <div className="flex justify-between gap-3 border-b border-linha py-2"><dt className="text-mata-suave">Espaço disponível</dt><dd className="num font-medium">{fmtMB(uso.total)}</dd></div>}
+          {uso && <div className="flex justify-between gap-3 py-2"><dt className="text-mata-suave">Protegido contra limpeza</dt><dd className="font-medium">{uso.persistente ? 'Sim' : 'Não garantido'}</dd></div>}
+        </dl>
       </Painel>
     </div>
   )
@@ -297,15 +334,20 @@ function AbaDados() {
 }
 
 export default function Config() {
-  const [aba, setAba] = useState<Aba>('empresa')
+  const papel = usePapel()
+  const gestor = papel === 'Gestor'
+  const abas = gestor ? ABAS : [{ id: 'usuarios', rotulo: 'Meu perfil' }, { id: 'offline', rotulo: 'Uso sem internet' }]
+  const [aba, setAba] = useState<Aba>(gestor ? 'empresa' : 'usuarios')
+  const ativa = abas.some((a) => a.id === aba) ? aba : (abas[0].id as Aba)
   return (
     <>
-      <CabecalhoPagina titulo="Configurações" descricao="Dados da empresa, usuários e inteligência artificial." />
-      <Abas abas={ABAS} ativa={aba} aoMudar={(id) => setAba(id as Aba)} className="mb-4" />
-      {aba === 'empresa' && <AbaEmpresa />}
-      {aba === 'usuarios' && <AbaUsuarios />}
-      {aba === 'ia' && <AbaIA />}
-      {aba === 'dados' && <AbaDados />}
+      <CabecalhoPagina titulo={gestor ? 'Configurações' : 'Meu perfil'} descricao={gestor ? 'Dados da empresa, usuários, uso sem internet e inteligência artificial.' : 'Troque de usuário para a demonstração e veja como o sistema funciona sem internet.'} />
+      <Abas abas={abas} ativa={ativa} aoMudar={(id) => setAba(id as Aba)} className="mb-4" />
+      {ativa === 'empresa' && <AbaEmpresa />}
+      {ativa === 'usuarios' && <AbaUsuarios />}
+      {ativa === 'offline' && <AbaOffline />}
+      {ativa === 'ia' && <AbaIA />}
+      {ativa === 'dados' && <AbaDados />}
     </>
   )
 }

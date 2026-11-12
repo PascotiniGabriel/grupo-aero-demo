@@ -1,18 +1,23 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { Check, ChevronsUpDown, Ellipsis, House, Loader2, Menu, Package, QrCode, Search, Settings, Sparkles, Wrench, X } from 'lucide-react'
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { CalendarDays, ClipboardCheck, Ellipsis, FileText, House, Loader2, Menu, MessageCircle, Package, QrCode, Receipt, Search, Settings, ShieldOff, Sparkles, Wrench, X, type LucideIcon } from 'lucide-react'
 import { useStore } from '@/store'
-import { Avatar, Button, IconButton, SeloIA, Toasts, cx } from '@/components/ui'
+import { Button, EstadoVazio, IconButton, SeloIA, Toasts, cx } from '@/components/ui'
+import { inicioDoPapel, podeAcessar, type Papel } from '@/lib/acesso'
 import { LeitorQR, useLeitorQR } from '@/components/qr/LeitorQR'
 import { BuscaGlobal, useBuscaGlobal } from './BuscaGlobal'
 import { Marca } from './Marca'
-import { GRUPOS_NAV, type ItemNav } from './nav'
+import { gruposDoPapel, usePapel, type ItemNav } from './nav'
+import { IndicadorSync } from './Sincronizacao'
+import { VerComo } from './VerComo'
 
 /** Casca do app: barra lateral, barra superior, navegação do celular, busca global, leitor de QR e avisos. */
 export function AppShell() {
   const [menuAberto, setMenuAberto] = useState(false)
   const { pathname } = useLocation()
   const abrirQR = useLeitorQR((s) => s.abrir)
+  const papel = usePapel()
+  const permitido = podeAcessar(papel, pathname)
 
   useEffect(() => {
     setMenuAberto(false)
@@ -39,16 +44,28 @@ export function AppShell() {
         <BarraSuperior abrirMenu={() => setMenuAberto(true)} />
         <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-28 pt-5 md:px-6 lg:px-8 lg:pb-10">
           <Suspense fallback={<Carregando />}>
-            <Outlet />
+            {permitido ? <Outlet /> : pathname === '/' ? <Navigate to={inicioDoPapel(papel)} replace /> : <NaoPermitido papel={papel} />}
           </Suspense>
         </main>
       </div>
 
-      <NavCelular abrirMenu={() => setMenuAberto(true)} abrirQR={() => abrirQR()} />
+      <NavCelular papel={papel} abrirMenu={() => setMenuAberto(true)} abrirQR={() => abrirQR()} />
       <BuscaGlobal />
       <LeitorQR />
       <Toasts />
     </div>
+  )
+}
+
+function NaoPermitido({ papel }: { papel: Papel }) {
+  const navegar = useNavigate()
+  return (
+    <EstadoVazio
+      icone={<ShieldOff size={28} />}
+      titulo={`Seu perfil (${papel}) não acessa esta tela`}
+      texto="Cada setor vê só o que é do trabalho dele. Para ver esta tela, troque o perfil em Ver como."
+      acao={<Button onClick={() => navegar(inicioDoPapel(papel))}>Ir para o meu início</Button>}
+    />
   )
 }
 
@@ -85,6 +102,8 @@ function FaixaDemo() {
 
 function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
   const naoLidas = useStore((s) => s.conversas.reduce((n, c) => n + c.naoLidas, 0))
+  const papel = usePapel()
+  const grupos = gruposDoPapel(papel)
 
   return (
     <div className="flex h-full flex-col text-white">
@@ -98,7 +117,7 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
       </div>
 
       <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3 pb-3">
-        {GRUPOS_NAV.map((g, i) => (
+        {grupos.map((g, i) => (
           <div key={g.titulo ?? i} className={cx(i > 0 && 'mt-4')}>
             {g.titulo && <p className="px-3 pb-1 text-xs text-white/45">{g.titulo}</p>}
             <ul className="flex flex-col gap-0.5">
@@ -121,9 +140,9 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
       <div className="shrink-0 border-t border-white/10 p-3">
         <NavLink to="/config" className={({ isActive }) => cx(ESTILO_LINK, isActive ? ESTILO_ATIVO : ESTILO_INATIVO)}>
           <Settings size={18} className="shrink-0" aria-hidden />
-          <span className="flex-1 truncate">Configurações</span>
+          <span className="flex-1 truncate">{papel === 'Gestor' ? 'Configurações' : 'Meu perfil'}</span>
         </NavLink>
-        <SeletorUsuario />
+        <VerComo aoTrocar={aoFechar} />
       </div>
     </div>
   )
@@ -145,56 +164,6 @@ function LinkLateral({ item, contador }: { item: ItemNav; contador: number }) {
         </span>
       )}
     </NavLink>
-  )
-}
-
-function SeletorUsuario() {
-  const usuarios = useStore((s) => s.usuarios)
-  const atualId = useStore((s) => s.usuarioAtualId)
-  const definir = useStore((s) => s.definirUsuario)
-  const [aberto, setAberto] = useState(false)
-  const caixa = useRef<HTMLDivElement>(null)
-  const atual = usuarios.find((u) => u.id === atualId) ?? usuarios[0]
-
-  useEffect(() => {
-    if (!aberto) return
-    const fora = (e: MouseEvent) => { if (!caixa.current?.contains(e.target as Node)) setAberto(false) }
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAberto(false) }
-    document.addEventListener('mousedown', fora)
-    document.addEventListener('keydown', esc)
-    return () => { document.removeEventListener('mousedown', fora); document.removeEventListener('keydown', esc) }
-  }, [aberto])
-
-  if (!atual) return null
-  return (
-    <div ref={caixa} className="relative mt-1">
-      <button
-        type="button" onClick={() => setAberto((a) => !a)} aria-haspopup="menu" aria-expanded={aberto}
-        className="flex w-full items-center gap-2.5 rounded-campo px-2 py-2 text-left transition-colors hover:bg-white/5 focus-visible:outline-white"
-      >
-        <Avatar nome={atual.nome} tamanho={34} />
-        <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-sm font-medium text-white">{atual.nome}</span>
-          <span className="block text-xs text-white/55">{atual.papel}</span>
-        </span>
-        <ChevronsUpDown size={15} className="shrink-0 text-white/50" aria-hidden />
-      </button>
-      {aberto && (
-        <div role="menu" aria-label="Trocar de usuário" className="anim-entrar absolute inset-x-0 bottom-full z-10 mb-1 rounded-painel border border-linha bg-papel p-1 text-mata shadow-xl">
-          <p className="px-2.5 pb-1 pt-1.5 text-xs text-mata-suave">Ver o sistema como</p>
-          {usuarios.map((u) => (
-            <button
-              key={u.id} type="button" role="menuitemradio" aria-checked={u.id === atual.id}
-              onClick={() => { definir(u.id); setAberto(false) }}
-              className="flex min-h-10 w-full items-center gap-2 rounded-campo px-2.5 py-1.5 text-left text-sm hover:bg-nevoa"
-            >
-              <span className="min-w-0 flex-1 truncate">{u.nome}<span className="ml-2 text-xs text-mata-suave">{u.papel}</span></span>
-              {u.id === atual.id && <Check size={15} className="shrink-0 text-lavoura" aria-hidden />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -222,6 +191,7 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
 
         <div className="flex-1" />
 
+        <IndicadorSync />
         <IconButton aria-label="Buscar" icone={<Search size={20} aria-hidden />} onClick={abrirBusca} className="lg:hidden" />
         <div className="hidden lg:block">
           <Button variante="secundario" icone={<QrCode size={17} aria-hidden />} onClick={() => abrirQR()}>Ler QR</Button>
@@ -240,14 +210,31 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
 
 /* ------------------------------------------------------------------ navegação do celular */
 
-function NavCelular({ abrirMenu, abrirQR }: { abrirMenu: () => void; abrirQR: () => void }) {
+interface AtalhoCel { para: string; rotulo: string; icone: LucideIcon; exato?: boolean }
+const ATALHOS_CEL: Record<Papel, [AtalhoCel, AtalhoCel]> = {
+  Gestor: [{ para: '/', rotulo: 'Início', icone: House, exato: true }, { para: '/os', rotulo: 'Oficina', icone: Wrench }],
+  Vendas: [{ para: '/', rotulo: 'Início', icone: House, exato: true }, { para: '/orcamentos', rotulo: 'Orçamentos', icone: FileText }],
+  Técnico: [{ para: '/agenda', rotulo: 'Agenda', icone: CalendarDays }, { para: '/os', rotulo: 'OS', icone: Wrench }],
+  Estoque: [{ para: '/', rotulo: 'Início', icone: House, exato: true }, { para: '/estoque', rotulo: 'Peças', icone: Package }],
+}
+const ATALHO_DIREITA: Record<Papel, AtalhoCel> = {
+  Gestor: { para: '/estoque', rotulo: 'Estoque', icone: Package },
+  Vendas: { para: '/conversas', rotulo: 'Conversas', icone: MessageCircle },
+  Técnico: { para: '/relatorios', rotulo: 'Relatórios', icone: ClipboardCheck },
+  Estoque: { para: '/notas', rotulo: 'Notas', icone: Receipt },
+}
+
+function NavCelular({ papel, abrirMenu, abrirQR }: { papel: Papel; abrirMenu: () => void; abrirQR: () => void }) {
   const item = 'flex h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors'
   const estado = ({ isActive }: { isActive: boolean }) => cx(item, isActive ? 'text-lavoura-escuro' : 'text-mata-suave')
+  const [e1, e2] = ATALHOS_CEL[papel]
+  const d = ATALHO_DIREITA[papel]
+  const Link1 = ({ a }: { a: AtalhoCel }) => <NavLink to={a.para} end={a.exato} className={estado}><a.icone size={20} aria-hidden />{a.rotulo}</NavLink>
   return (
     <nav aria-label="Atalhos" className="nao-imprimir fixed inset-x-0 bottom-0 z-30 border-t border-linha bg-papel pb-[env(safe-area-inset-bottom)] lg:hidden">
       <div className="mx-auto flex max-w-lg items-end px-1">
-        <NavLink to="/" end className={estado}><House size={20} aria-hidden />Início</NavLink>
-        <NavLink to="/os" className={estado}><Wrench size={20} aria-hidden />Oficina</NavLink>
+        <Link1 a={e1} />
+        <Link1 a={e2} />
         <div className="flex flex-1 justify-center">
           <button
             type="button" onClick={abrirQR} aria-label="Ler QR code"
@@ -256,7 +243,7 @@ function NavCelular({ abrirMenu, abrirQR }: { abrirMenu: () => void; abrirQR: ()
             <QrCode size={24} aria-hidden />
           </button>
         </div>
-        <NavLink to="/estoque" className={estado}><Package size={20} aria-hidden />Estoque</NavLink>
+        <Link1 a={d} />
         <button type="button" onClick={abrirMenu} className={cx(item, 'text-mata-suave')}><Ellipsis size={20} aria-hidden />Mais</button>
       </div>
     </nav>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, Check, FileText, Sparkles, Wrench } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarPlus, Check, FileText, MapPin, Sparkles, Wrench } from 'lucide-react'
 import { useStore } from '@/store'
-import { Abas, Button, CabecalhoPagina, EstadoVazio, Painel, SeloStatus, cx, toast } from '@/components/ui'
+import { Abas, Button, CabecalhoPagina, EstadoVazio, Gaveta, Painel, Selo, SeloStatus, cx, toast } from '@/components/ui'
 import { dataCurta, dataHora } from '@/lib/format'
 import { nomeModelo, porId } from '@/store/selectors'
 import { ROTULO_COLUNA, STATUS_ORDEM, atrasada } from './status'
@@ -10,7 +10,10 @@ import { useMoverOS } from './useMoverOS'
 import { CampoDitado } from './CampoDitado'
 import { GerenciadorFotos } from './FotosOS'
 import { PecasServicosOS } from './PecasServicosOS'
-import type { StatusOS } from '@/types'
+import { CartaoLocal, EditorLocal } from './LocalUI'
+import { CompromissoGaveta } from '@/pages/agenda/CompromissoGaveta'
+import { quando } from '@/pages/agenda/agendaUtil'
+import type { Local, StatusOS } from '@/types'
 
 export default function OSDetalhe() {
   const { id } = useParams()
@@ -20,6 +23,11 @@ export default function OSDetalhe() {
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
   const salvar = useStore((s) => s.salvar)
+  const usuarios = useStore((s) => s.usuarios)
+  const compromissosRaw = useStore((s) => s.compromissos)
+  const [editandoLocal, setEditandoLocal] = useState(false)
+  const [rascunhoLocal, setRascunhoLocal] = useState<Local | undefined>()
+  const [agendando, setAgendando] = useState(false)
   const { mover, dialogo } = useMoverOS()
   const [aba, setAba] = useState('resumo')
 
@@ -39,6 +47,23 @@ export default function OSDetalhe() {
   const eq = porId(equipamentos, os.equipamentoId)
   const anteriores = ordens.filter((o) => o.equipamentoId === os.equipamentoId && o.id !== os.id).sort((a, b) => b.abertura.localeCompare(a.abertura))
   const idx = STATUS_ORDEM.indexOf(os.status)
+  const campo = os.atendimento === 'campo'
+  const agendados = (compromissosRaw ?? []).filter((c) => c.osId === os.id && c.status !== 'cancelado').sort((a, b) => a.inicio.localeCompare(b.inicio))
+  const proxAgenda = agendados.find((c) => c.status !== 'concluido') ?? agendados[agendados.length - 1]
+  const tecnicoUsuario = usuarios.find((u) => u.nome === os.tecnico)
+
+  const abrirEditorLocal = () => { setRascunhoLocal(os.local); setEditandoLocal(true) }
+  const gravarLocal = () => {
+    salvar('ordens', {
+      ...os, atendimento: 'campo', local: rascunhoLocal ? { ...rascunhoLocal, atualizadoEm: new Date().toISOString() } : undefined,
+      historico: [...os.historico, { data: new Date().toISOString(), texto: rascunhoLocal ? 'Local do atendimento atualizado' : 'Local do atendimento removido' }],
+    })
+    setEditandoLocal(false); toast.sucesso('Local do atendimento salvo')
+  }
+  const mudarAtendimento = (a: 'oficina' | 'campo') => {
+    salvar('ordens', { ...os, atendimento: a })
+    if (a === 'campo' && !os.local) abrirEditorLocal()
+  }
 
   const salvarDiag = () => {
     if (diag !== os.diagnostico) {
@@ -53,7 +78,7 @@ export default function OSDetalhe() {
       <CabecalhoPagina
         titulo={`OS ${os.numero}`}
         descricao={cliente ? `${cliente.nome} · ${eq ? `${nomeModelo(eq.modeloId, modelos)} ${eq.serial}` : ''}` : undefined}
-        acoes={<SeloStatus tipo="os" status={os.status} />}
+        acoes={<>{campo && <Selo cor="azul" icone={<MapPin size={12} />}>Campo</Selo>}<SeloStatus tipo="os" status={os.status} /></>}
       />
 
       <Painel className="mb-4">
@@ -79,6 +104,14 @@ export default function OSDetalhe() {
           <div><p className="text-xs text-mata-suave">Drone</p>{eq && cliente ? <Link className="font-medium text-ceu hover:underline" to={`/clientes/${cliente.id}`}>{nomeModelo(eq.modeloId, modelos)} · <span className="serial text-xs">{eq.serial}</span></Link> : '-'}</div>
           <div><p className="text-xs text-mata-suave">Técnico</p><p className="font-medium">{os.tecnico || '-'}</p></div>
           <div><p className="text-xs text-mata-suave">Previsão</p><p className={cx('num font-medium', atrasada(os) && 'text-barro')}>{dataCurta(os.previsao)}{atrasada(os) ? ' (atrasada)' : ''}</p></div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          {proxAgenda ? (
+            <p className="flex items-center gap-1.5"><CalendarPlus size={16} className="text-mata-suave" aria-hidden />Agendado para <span className="font-medium">{quando(proxAgenda.inicio)}</span> com {usuarios.find((u) => u.id === proxAgenda.tecnicoId)?.nome ?? os.tecnico}</p>
+          ) : <p className="text-mata-suave">Sem visita agendada.</p>}
+          <Button tamanho="sm" variante="secundario" icone={<CalendarPlus size={16} />} onClick={() => setAgendando(true)}>Agendar visita</Button>
+          {!campo && <Button tamanho="sm" variante="fantasma" icone={<MapPin size={16} />} onClick={() => mudarAtendimento('campo')}>Atender em campo</Button>}
+          {campo && <Button tamanho="sm" variante="fantasma" onClick={() => mudarAtendimento('oficina')}>Voltar para oficina</Button>}
         </div>
         {anteriores.length > 0 && (
           <div className="mt-4 flex gap-2 rounded-campo bg-ambar-claro p-3 text-sm" role="note">
@@ -107,6 +140,7 @@ export default function OSDetalhe() {
       {aba === 'resumo' && (
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-4">
+            {campo && <CartaoLocal local={os.local} aoEditar={abrirEditorLocal} />}
             <Painel titulo="Relato do cliente"><p className="text-sm">{os.relatoCliente || <span className="text-mata-suave">Sem relato registrado.</span>}</p></Painel>
             <Painel titulo="Diagnóstico" acoes={diag !== os.diagnostico && <Button tamanho="sm" onClick={salvarDiag}>Salvar</Button>}>
               <CampoDitado rotulo="Diagnóstico" valor={diag} aoMudar={setDiag} linhas={4} placeholder="O que foi encontrado na bancada? Pode ditar." />
@@ -156,6 +190,16 @@ export default function OSDetalhe() {
         </Painel>
       )}
       {dialogo}
+      <Gaveta
+        aberta={editandoLocal} aoFechar={() => setEditandoLocal(false)} titulo="Local do atendimento" largura="md"
+        rodape={<><Button variante="secundario" onClick={() => setEditandoLocal(false)}>Cancelar</Button><Button onClick={gravarLocal}>Salvar local</Button></>}
+      >
+        <EditorLocal valor={rascunhoLocal} aoMudar={setRascunhoLocal} locaisCliente={cliente?.locais} />
+      </Gaveta>
+      <CompromissoGaveta
+        aberta={agendando} aoFechar={() => setAgendando(false)}
+        inicial={{ osId: os.id, clienteId: os.clienteId, local: os.local, tecnicoId: tecnicoUsuario?.id, tipo: campo ? 'atendimento_campo' : 'manutencao_oficina', titulo: `${campo ? 'Atendimento' : 'Manutenção'}, OS ${os.numero}` }}
+      />
     </>
   )
 }

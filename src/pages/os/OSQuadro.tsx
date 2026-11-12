@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Camera, FileText, LayoutGrid, List, Plus, Wrench } from 'lucide-react'
+import { Camera, FileText, LayoutGrid, List, MapPin, Plus, Wrench } from 'lucide-react'
 import { useStore } from '@/store'
 import { Button, CabecalhoPagina, CampoBusca, EstadoVazio, Painel, Select, SeloStatus, Tabela, cx, type Coluna } from '@/components/ui'
 import { dataCurta, normalizar } from '@/lib/format'
@@ -24,6 +24,7 @@ export default function OSQuadro() {
   const [busca, setBusca] = useState('')
   const [tecnico, setTecnico] = useState('')
   const [modelo, setModelo] = useState('')
+  const [onde, setOnde] = useState('')
   const [arrastando, setArrastando] = useState<string | null>(null)
   const [sobre, setSobre] = useState<StatusOS | null>(null)
   const [novaAberta, setNovaAberta] = useState(false)
@@ -42,11 +43,12 @@ export default function OSQuadro() {
       const eq = porId(equipamentos, o.equipamentoId)
       if (tecnico && o.tecnico !== tecnico) return false
       if (modelo && eq?.modeloId !== modelo) return false
+      if (onde && (o.atendimento ?? 'oficina') !== onde) return false
       if (!q) return true
       const alvo = normalizar(`${o.numero} ${porId(clientes, o.clienteId)?.nome ?? ''} ${eq?.serial ?? ''} ${eq?.apelido ?? ''} ${nomeModelo(eq?.modeloId ?? '', modelos)} ${o.relatoCliente}`)
       return alvo.includes(q)
     })
-  }, [ordens, equipamentos, clientes, modelos, busca, tecnico, modelo])
+  }, [ordens, equipamentos, clientes, modelos, busca, tecnico, modelo, onde])
 
   const soltar = (status: StatusOS) => {
     const os = ordens.find((o) => o.id === arrastando)
@@ -58,6 +60,7 @@ export default function OSQuadro() {
     { id: 'num', titulo: 'OS', principal: true, valor: (o) => o.numero, render: (o) => <span className="num font-medium">#{o.numero}</span> },
     { id: 'cli', titulo: 'Cliente', valor: (o) => porId(clientes, o.clienteId)?.nome ?? '', render: (o) => porId(clientes, o.clienteId)?.nome ?? '-' },
     { id: 'drone', titulo: 'Drone', render: (o) => { const e = porId(equipamentos, o.equipamentoId); return e ? `${nomeModelo(e.modeloId, modelos)} · ${e.serial}` : '-' } },
+    { id: 'onde', titulo: 'Atendimento', valor: (o) => o.atendimento ?? 'oficina', render: (o) => (o.atendimento === 'campo' ? <span className="inline-flex items-center gap-1 text-ceu"><MapPin size={14} />Campo</span> : 'Oficina'), ocultarMobile: true },
     { id: 'tec', titulo: 'Técnico', valor: (o) => o.tecnico, render: (o) => o.tecnico, ocultarMobile: true },
     { id: 'prev', titulo: 'Previsão', valor: (o) => o.previsao, render: (o) => <span className={cx('num', atrasada(o) && 'text-barro')}>{dataCurta(o.previsao)}</span> },
     { id: 'st', titulo: 'Status', valor: (o) => STATUS_ORDEM.indexOf(o.status), render: (o) => <SeloStatus tipo="os" status={o.status} /> },
@@ -78,6 +81,11 @@ export default function OSQuadro() {
         <Select value={modelo} onChange={(e) => setModelo(e.target.value)} aria-label="Filtrar por modelo" className="w-auto!">
           <option value="">Todos os modelos</option>
           {modelos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+        </Select>
+        <Select value={onde} onChange={(e) => setOnde(e.target.value)} aria-label="Filtrar por local do atendimento" className="w-auto!">
+          <option value="">Oficina e campo</option>
+          <option value="oficina">Oficina</option>
+          <option value="campo">Campo</option>
         </Select>
         <div role="group" aria-label="Forma de exibição" className="ml-auto flex rounded-campo border border-linha bg-papel p-0.5">
           {([['quadro', 'Quadro', LayoutGrid], ['lista', 'Lista', List]] as const).map(([id, rot, Ic]) => (
@@ -119,6 +127,7 @@ export default function OSQuadro() {
                             <div className="flex items-center justify-between gap-2">
                               <span className="num text-sm font-semibold">OS {o.numero}</span>
                               <span className="flex items-center gap-1.5 text-mata-suave">
+                                {o.atendimento === 'campo' && <span title="Atendimento em campo" className="inline-flex items-center gap-0.5 rounded-full bg-ceu-claro px-1.5 text-xs font-medium text-[#14578F]"><MapPin size={12} />Campo</span>}
                                 {o.fotos.length > 0 && <span title={`${o.fotos.length} fotos`} className="inline-flex items-center gap-0.5 text-xs"><Camera size={14} /><span className="num">{o.fotos.length}</span></span>}
                                 {o.relatorio && <span title="Tem relatório"><FileText size={14} className="text-lavoura" /></span>}
                               </span>

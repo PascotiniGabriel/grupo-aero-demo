@@ -4,11 +4,13 @@ import { AlertTriangle, ArrowRight, PackageX, Wrench } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { CabecalhoPagina, EstadoVazio, Indicador, Painel, SeloIA, SeloStatus, Select, cx, rotuloStatus } from '@/components/ui'
 import { useStore } from '@/store'
+import { usePapel } from '@/components/layout/nav'
 import { porId, saidasPorProduto } from '@/store/selectors'
 import { brl, dataCurta, numero } from '@/lib/format'
 import type { StatusOS } from '@/types'
 import { contaVencidos, diasMs, listarVendas, somaVendas, vendasPorMes, type Periodo } from './calculos'
 
+const ETAPAS: [string, string][] = [['novo', 'Novo'], ['contato', 'Em contato'], ['demonstracao', 'Demonstração'], ['proposta', 'Proposta']]
 const STATUS_FLUXO: StatusOS[] = ['recebido', 'diagnostico', 'aguardando_aprovacao', 'em_manutencao', 'testes', 'pronto']
 
 function contar<T>(itens: T[], chave: (x: T) => string | undefined, peso: (x: T) => number = () => 1) {
@@ -45,6 +47,10 @@ export default function Inicio() {
   const lancamentos = useStore((s) => s.lancamentos)
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
+  const leads = useStore((s) => s.leads)
+  const conversas = useStore((s) => s.conversas)
+  const papel = usePapel()
+  const gestor = papel === 'Gestor', vendas = papel === 'Vendas', estoque = papel === 'Estoque'
 
   const d = useMemo(() => {
     const agora = Date.now()
@@ -89,7 +95,7 @@ export default function Inicio() {
     const porStatus = STATUS_FLUXO.map((s) => ({ s, n: abertas.filter((o) => o.status === s).length }))
 
     // leitura calculada
-    const leitura: { texto: string; acoes: { rotulo: string; to: string }[] }[] = []
+    const leitura: { area: 'estoque' | 'oficina' | 'financeiro' | 'vendas'; texto: string; acoes: { rotulo: string; to: string }[] }[] = []
     const acaba = itens.map((p) => {
       const giro = (saidas90[p.id] ?? 0) / 3
       return { p, giro, dias: giro > 0 ? (p.estoque / giro) * 30 : Infinity }
@@ -97,36 +103,46 @@ export default function Inicio() {
     if (acaba && acaba.dias <= 60) {
       const diasAcaba = Math.max(1, Math.round(acaba.dias))
       leitura.push({
+        area: 'estoque',
         texto: `${acaba.p.nome} sai ${numero(Math.round(acaba.giro))} por mês e há ${numero(acaba.p.estoque)} em estoque: acaba em cerca de ${numero(diasAcaba)} ${diasAcaba === 1 ? 'dia' : 'dias'}.`,
         acoes: [{ rotulo: 'Ver peça', to: `/estoque/${acaba.p.id}` }, { rotulo: 'Perguntar mais', to: `/assistente?q=${encodeURIComponent(`Quanto devo comprar de ${acaba.p.nome}?`)}` }],
       })
     }
     if (paradas.length > 0) {
       leitura.push({
+        area: 'estoque',
         texto: `${paradas.length} peças estão sem saída há mais de 90 dias e prendem ${brl(valorParado)} em estoque.`,
         acoes: [{ rotulo: 'Ver peça', to: `/estoque/${paradas[0].p.id}` }, { rotulo: 'Perguntar mais', to: `/assistente?q=${encodeURIComponent('Quais peças paradas posso colocar em promoção?')}` }],
       })
     }
     if (modelosAt[0] && servicos[0]) {
       leitura.push({
+        area: 'oficina',
         texto: `O ${modelosAt[0][0]} é o drone mais atendido na oficina (${modelosAt[0][1]} OS) e o serviço mais feito é ${servicos[0][0].toLowerCase()}.`,
         acoes: [{ rotulo: 'Ver ordens', to: '/os' }, { rotulo: 'Perguntar mais', to: `/assistente?q=${encodeURIComponent(`Quais peças mais saem para o ${modelosAt[0][0]}?`)}` }],
       })
     }
     if (vencidos.qtd > 0) {
       leitura.push({
+        area: 'financeiro',
         texto: `${vencidos.qtd} cobranças estão vencidas, somando ${brl(vencidos.valor)} a receber.`,
         acoes: [{ rotulo: 'Ver financeiro', to: '/financeiro' }, { rotulo: 'Perguntar mais', to: `/assistente?q=${encodeURIComponent('Quais clientes estão com pagamento atrasado?')}` }],
       })
-    } else if (aguardando.length > 0) {
+    }
+    if (aguardando.length > 0) {
       leitura.push({
+        area: 'vendas',
         texto: `${aguardando.length} orçamentos aguardam resposta, ${brl(valorAguardando)} em jogo.`,
         acoes: [{ rotulo: 'Ver orçamentos', to: '/orcamentos' }],
       })
     }
 
-    return { fat, variacao, abertas, atrasadas, aguardando, valorAguardando, vencidos, top, paradas, valorParado, abaixo, servicos, modelosAt, porStatus, meses: vendasPorMes(vendas), leitura: leitura.slice(0, 4) }
-  }, [periodo, produtos, movs, orcamentos, ordens, lancamentos, equipamentos, modelos])
+    return { fat, variacao, abertas, atrasadas, aguardando, valorAguardando, vencidos, top, paradas, valorParado, abaixo, servicos, modelosAt, porStatus, meses: vendasPorMes(vendas), leitura: leitura.filter((l) => gestor || (vendas && l.area === 'vendas') || (estoque && l.area === 'estoque')).slice(0, 4),
+      valorEstoque: itens.reduce((a, p) => a + p.estoque * p.custo, 0), qtdItens: itens.length,
+      leadsAbertos: leads.filter((l) => l.etapa !== 'fechado' && l.etapa !== 'perdido'),
+      porEtapa: ETAPAS.map(([id, nome]) => ({ nome, n: leads.filter((l) => l.etapa === id).length })) }
+  }, [periodo, produtos, movs, orcamentos, ordens, lancamentos, equipamentos, modelos, leads, papel])
+  const naoLidas = conversas.reduce((n, c) => n + c.naoLidas, 0)
 
   const tickBrl = (v: number) => (v >= 1000 ? `${numero(v / 1000)} mil` : numero(v))
 
@@ -134,7 +150,7 @@ export default function Inicio() {
     <>
       <CabecalhoPagina
         titulo="Início"
-        descricao="Resumo do dia: vendas, oficina e estoque."
+        descricao={gestor ? 'Resumo do dia: vendas, oficina e estoque.' : vendas ? 'Resumo do dia: orçamentos, funil e conversas.' : 'Resumo do dia: giro, mínimos e valor em estoque.'}
         acoes={
           <label className="flex items-center gap-2 text-sm text-mata-suave">
             Período
@@ -147,12 +163,30 @@ export default function Inicio() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {vendas && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Link to="/financeiro" className="block rounded-painel focus-visible:outline-2"><Indicador rotulo="Vendas fechadas no período" valor={brl(d.fat)} variacao={d.variacao} detalhe={d.variacao === undefined ? 'sem período anterior' : 'vs período anterior'} className="h-full hover:border-lavoura" /></Link>
+        <Link to="/orcamentos" className="block rounded-painel"><Indicador rotulo="Orçamentos aguardando" valor={numero(d.aguardando.length)} detalhe={brl(d.valorAguardando)} className="h-full hover:border-lavoura" /></Link>
+          <Link to="/funil" className="block rounded-painel"><Indicador rotulo="Leads em aberto" valor={numero(d.leadsAbertos.length)} detalhe={brl(d.leadsAbertos.reduce((a, l) => a + l.valorEstimado, 0))} className="h-full hover:border-lavoura" /></Link>
+          <Link to="/conversas" className="block rounded-painel"><Indicador rotulo="Conversas não lidas" valor={numero(naoLidas)} cor={naoLidas ? 'ambar' : undefined} detalhe="no WhatsApp" className="h-full hover:border-lavoura" /></Link>
+        </div>
+      )}
+      {estoque && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Link to="/estoque" className="block rounded-painel"><Indicador rotulo="Valor em estoque" valor={brl(d.valorEstoque)} detalhe="a preço de custo" className="h-full hover:border-lavoura" /></Link>
+          <Link to="/estoque" className="block rounded-painel"><Indicador rotulo="Abaixo do mínimo" valor={numero(d.abaixo.length)} cor={d.abaixo.length ? 'ambar' : undefined} detalhe="peças para repor" className="h-full hover:border-lavoura" /></Link>
+          <Link to="/estoque" className="block rounded-painel"><Indicador rotulo="Peças paradas" valor={numero(d.paradas.length)} detalhe={brl(d.valorParado)} className="h-full hover:border-lavoura" /></Link>
+          <Link to="/estoque" className="block rounded-painel"><Indicador rotulo="Itens cadastrados" valor={numero(d.qtdItens)} detalhe="peças e acessórios" className="h-full hover:border-lavoura" /></Link>
+        </div>
+      )}
+      {gestor && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Link to="/financeiro" className="block rounded-painel focus-visible:outline-2"><Indicador rotulo="Vendas fechadas no período" valor={brl(d.fat)} variacao={d.variacao} detalhe={d.variacao === undefined ? 'sem período anterior' : 'vs período anterior'} className="h-full hover:border-lavoura" /></Link>
         <Link to="/os" className="block rounded-painel"><Indicador rotulo="OS em aberto" valor={numero(d.abertas.length)} cor={d.atrasadas.length ? 'ambar' : undefined} detalhe={d.atrasadas.length ? `${d.atrasadas.length} atrasadas` : 'nenhuma atrasada'} className="h-full hover:border-lavoura" /></Link>
         <Link to="/orcamentos" className="block rounded-painel"><Indicador rotulo="Orçamentos aguardando" valor={numero(d.aguardando.length)} detalhe={brl(d.valorAguardando)} className="h-full hover:border-lavoura" /></Link>
         <Link to="/financeiro" className="block rounded-painel"><Indicador rotulo="A receber vencido" valor={brl(d.vencidos.valor)} cor={d.vencidos.qtd ? 'vermelho' : undefined} detalhe={`${d.vencidos.qtd} cobranças`} className="h-full hover:border-lavoura" /></Link>
-      </div>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -174,7 +208,7 @@ export default function Inicio() {
             )}
           </section>
 
-          <Painel titulo="Peças que mais saem" acoes={<span className="text-xs text-mata-suave">saídas no período · estoque atual</span>}>
+          {(gestor || estoque) && <Painel titulo="Peças que mais saem" acoes={<span className="text-xs text-mata-suave">saídas no período · estoque atual</span>}>
             {d.top.length === 0 ? <EstadoVazio titulo="Nenhuma saída no período" texto="Escolha um período maior para ver o giro." /> : (
               <ul className="space-y-1">
                 {d.top.map(({ p, q }) => (
@@ -193,9 +227,9 @@ export default function Inicio() {
                 ))}
               </ul>
             )}
-          </Painel>
+          </Painel>}
 
-          <Painel titulo="Vendas fechadas por mês" acoes={<span className="text-xs text-mata-suave">últimos 6 meses</span>}>
+          {(gestor || vendas) && <Painel titulo="Vendas fechadas por mês" acoes={<span className="text-xs text-mata-suave">últimos 6 meses</span>}>
             <div className="h-64" role="img" aria-label="Vendas fechadas por mês, separado em drones, peças e serviços">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={d.meses} margin={{ top: 4, right: 4, left: -8, bottom: 0 }}>
@@ -210,11 +244,27 @@ export default function Inicio() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </Painel>
+          </Painel>}
         </div>
 
         <div className="space-y-4">
-          <section className={cx('rounded-painel border bg-papel', d.abaixo.length ? 'border-ambar' : 'border-linha')}>
+          {vendas && (
+            <>
+              <Painel titulo="Funil de vendas" acoes={<Link to="/funil" className="text-sm font-medium text-ceu hover:underline">Abrir funil</Link>}>
+                <Ranking linhas={d.porEtapa.map((e) => [e.nome, e.n] as [string, number]).filter((x) => x[1] > 0)} vazio="Nenhum lead em aberto." />
+              </Painel>
+              <Painel titulo="Orçamentos aguardando resposta" acoes={<Link to="/orcamentos" className="text-sm font-medium text-ceu hover:underline">Ver todos</Link>}>
+                {d.aguardando.length === 0 ? <p className="text-sm text-mata-suave">Nenhum orçamento aguardando.</p> : (
+                  <ul className="divide-y divide-linha">
+                    {d.aguardando.slice(0, 6).map((o) => (
+                      <li key={o.id}><Link to={`/orcamentos/${o.id}`} className="flex min-h-11 items-center justify-between gap-2 py-1.5 text-sm hover:text-ceu"><span className="truncate">Orçamento {o.numero}</span><span className="num shrink-0">{brl(o.itens.reduce((a, i) => a + i.quantidade * i.valorUnit, 0) - (o.desconto || 0) + (o.frete || 0))}</span></Link></li>
+                    ))}
+                  </ul>
+                )}
+              </Painel>
+            </>
+          )}
+          {(gestor || estoque) && <section className={cx('rounded-painel border bg-papel', d.abaixo.length ? 'border-ambar' : 'border-linha')}>
             <header className="flex items-center gap-2 border-b border-linha px-4 py-3">
               <AlertTriangle size={16} className={d.abaixo.length ? 'text-ambar' : 'text-mata-suave'} aria-hidden />
               <h2 className="text-base">Abaixo do mínimo</h2>
@@ -236,9 +286,9 @@ export default function Inicio() {
                 {d.abaixo.length > 7 && <li className="px-4 py-2 text-xs text-mata-suave">e mais {d.abaixo.length - 7} peças</li>}
               </ul>
             )}
-          </section>
+          </section>}
 
-          <Painel titulo="Oficina agora" acoes={<Link to="/os" className="text-sm font-medium text-ceu hover:underline">Ver todas</Link>}>
+          {gestor && <Painel titulo="Oficina agora" acoes={<Link to="/os" className="text-sm font-medium text-ceu hover:underline">Ver todas</Link>}>
             <div className="grid grid-cols-3 gap-2">
               {d.porStatus.map(({ s, n }) => (
                 <div key={s} className="rounded-campo bg-nevoa px-2 py-2 text-center">
@@ -260,11 +310,11 @@ export default function Inicio() {
                 ))}
               </ul>
             )}
-          </Painel>
+          </Painel>}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      {(gestor || estoque) && <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Painel titulo="Peças paradas" acoes={<span className="text-xs text-mata-suave">sem saída há 90+ dias</span>}>
           {d.paradas.length === 0 ? <EstadoVazio icone={<PackageX size={28} />} titulo="Nenhuma peça parada" /> : (
             <>
@@ -282,9 +332,9 @@ export default function Inicio() {
             </>
           )}
         </Painel>
-        <Painel titulo="Serviços mais feitos"><Ranking linhas={d.servicos} vazio="Nenhum serviço no período." /></Painel>
-        <Painel titulo="Modelos mais atendidos"><Ranking linhas={d.modelosAt} vazio="Nenhuma OS no período." /></Painel>
-      </div>
+        {gestor && <Painel titulo="Serviços mais feitos"><Ranking linhas={d.servicos} vazio="Nenhum serviço no período." /></Painel>}
+        {gestor && <Painel titulo="Modelos mais atendidos"><Ranking linhas={d.modelosAt} vazio="Nenhuma OS no período." /></Painel>}
+      </div>}
     </>
   )
 }

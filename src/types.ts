@@ -42,10 +42,20 @@ export interface Movimentacao {
 
 export interface Servico { id: string; nome: string; preco: number; horas: number }
 
+/** Ponto no mapa (área rural: as coordenadas são o dado principal). */
+export interface Local {
+  lat: number; lng: number; descricao: string
+  /** Ex.: "Depois da porteira azul, 3 km de estrada de chão". */
+  referencia?: string
+  origem?: 'whatsapp' | 'cadastro' | 'tecnico'
+  atualizadoEm?: string
+}
+
 export interface Cliente {
   id: string; nome: string; tipo: 'PF' | 'PJ'; documento: string; ie?: string
   cidade: string; uf: string; endereco: string; cep: string; fone: string; email: string
   desde: string; observacao?: string
+  locais?: Local[]
 }
 
 export interface Equipamento {
@@ -94,6 +104,8 @@ export interface OrdemServico {
   relatorio?: RelatorioOS
   orcamentoId?: string
   historico: { data: string; texto: string }[]
+  atendimento?: 'oficina' | 'campo'
+  local?: Local
 }
 
 export interface ItemNota { descricao: string; ncm: string; quantidade: number; valorUnit: number; produtoId?: string }
@@ -137,6 +149,23 @@ export interface Usuario { id: string; nome: string; papel: 'Gestor' | 'Vendas' 
 
 export interface Empresa { nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string; unidades: string[] }
 
+export type TipoCompromisso = 'atendimento_campo' | 'manutencao_oficina' | 'entrega' | 'treinamento' | 'revisao_programada' | 'outro'
+export type StatusCompromisso = 'agendado' | 'em_andamento' | 'concluido' | 'cancelado'
+
+export interface Compromisso {
+  id: string
+  /** id de Usuario (OrdemServico.tecnico guarda o NOME). */
+  tecnicoId: string
+  tipo: TipoCompromisso
+  titulo: string
+  inicio: string; fim: string
+  osId?: string; clienteId?: string
+  local?: Local
+  status: StatusCompromisso
+  checklist?: { texto: string; feito: boolean }[]
+  observacoes?: string
+}
+
 export interface Dados {
   empresa: Empresa
   usuarios: Usuario[]
@@ -152,4 +181,5 @@ export interface Dados {
   lancamentos: Lancamento[]
   leads: Lead[]
   conversas: Conversa[]
+  compromissos: Compromisso[]
 }

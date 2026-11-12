@@ -10,6 +10,7 @@ import { brl, dataCurta, numero, relativo } from '@/lib/format'
 import { rotuloStatus, statusLancamento } from '@/components/ui'
 import { deInput, emAberto, paraInput, totalComprado, vencidoCliente } from './calc'
 import { FormCliente } from './FormCliente'
+import { LocaisCliente } from './LocaisCliente'
 
 export default function ClienteDetalhe() {
   const { id } = useParams()
@@ -146,6 +147,8 @@ function Detalhe({ cliente }: { cliente: Cliente }) {
               </ul>
             )}
           </Painel>
+
+          <LocaisCliente cliente={cliente} />
 
           <Painel titulo="Histórico">
             {linha.length === 0 ? (

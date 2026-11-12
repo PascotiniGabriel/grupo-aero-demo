@@ -6,7 +6,8 @@ import { useLeitorQR, localizarCodigo } from '@/components/qr/LeitorQR'
 import { nomeModelo } from '@/store/selectors'
 import { diasAFrente } from '@/data/seed'
 import { CampoDitado } from './CampoDitado'
-import type { OrdemServico } from '@/types'
+import { EditorLocal, CartaoLocal } from './LocalUI'
+import type { Local, OrdemServico } from '@/types'
 
 const diaISO = (iso: string) => iso.slice(0, 10)
 
@@ -29,12 +30,14 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
   const [tecnico, setTecnico] = useState('')
   const [previsao, setPrevisao] = useState(() => diaISO(diasAFrente(7)))
   const [erro, setErro] = useState('')
+  const [atendimento, setAtendimento] = useState<'oficina' | 'campo'>('oficina')
+  const [local, setLocal] = useState<Local | undefined>()
 
   useEffect(() => {
     if (!aberta) return
     const eq = equipamentos.find((e) => e.id === equipamentoInicial)
     setClienteId(eq?.clienteId ?? ''); setEquipId(eq?.id ?? ''); setRelato(''); setErro('')
-    setTecnico(tecnicos[0]?.nome ?? ''); setPrevisao(diaISO(diasAFrente(7)))
+    setTecnico(tecnicos[0]?.nome ?? ''); setPrevisao(diaISO(diasAFrente(7))); setAtendimento('oficina'); setLocal(undefined)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberta, equipamentoInicial])
 
@@ -54,13 +57,15 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
   function criar() {
     if (!clienteId) return setErro('Escolha o cliente.')
     if (!equipId) return setErro('Escolha o drone do cliente.')
+    if (atendimento === 'campo' && !local) return setErro('Informe o local do atendimento em campo.')
     const numero = proximoNumero('os')
     const agora = new Date().toISOString()
     const os: OrdemServico = {
       id: `os-${numero}`, numero, clienteId, equipamentoId: equipId, status: 'recebido',
       abertura: agora, previsao: new Date(`${previsao}T12:00:00`).toISOString(),
       tecnico, relatoCliente: relato.trim(), diagnostico: '', itens: [], fotos: [],
-      historico: [{ data: agora, texto: 'OS aberta' }],
+      historico: [{ data: agora, texto: atendimento === 'campo' ? 'OS aberta para atendimento em campo' : 'OS aberta' }],
+      atendimento, local: atendimento === 'campo' ? local : undefined,
     }
     salvar('ordens', os)
     toast.sucesso(`OS ${numero} aberta`)
@@ -88,6 +93,18 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
             ))}
           </Select>
         </Campo>
+        <div role="group" aria-label="Onde será o atendimento" className="flex rounded-campo border border-linha bg-papel p-0.5">
+          {([['oficina', 'Oficina'], ['campo', 'Campo']] as const).map(([id, rot]) => (
+            <button key={id} type="button" aria-pressed={atendimento === id} onClick={() => setAtendimento(id)}
+              className={`h-10 flex-1 rounded-[5px] text-sm font-medium ${atendimento === id ? 'bg-mata text-white' : 'text-mata-suave hover:text-mata'}`}>{rot}</button>
+          ))}
+        </div>
+        {atendimento === 'campo' && (
+          <div className="space-y-3">
+            {local && <CartaoLocal local={local} titulo="Local do atendimento" semMapa />}
+            <EditorLocal valor={local} aoMudar={(l) => { setLocal(l); setErro('') }} locaisCliente={clientes.find((c) => c.id === clienteId)?.locais} />
+          </div>
+        )}
         <Campo rotulo="O que o cliente relatou">
           <CampoDitado rotulo="Relato do cliente" valor={relato} aoMudar={setRelato} placeholder="Ex.: caiu na lavoura e o braço 3 trincou" />
         </Campo>

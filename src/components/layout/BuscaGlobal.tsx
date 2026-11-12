@@ -8,7 +8,8 @@ import { nomeModelo } from '@/store/selectors'
 import { normalizar } from '@/lib/format'
 import { cx } from '@/components/ui'
 import { useLeitorQR } from '@/components/qr/LeitorQR'
-import { ITENS_NAV } from './nav'
+import { podeAcessar } from '@/lib/acesso'
+import { gruposDoPapel, usePapel } from './nav'
 
 interface EstadoBusca { aberta: boolean; abrir: () => void; fechar: () => void }
 /** Abre a busca global de qualquer lugar: `useBuscaGlobal.getState().abrir()`. Atalho: Ctrl+K. */
@@ -59,6 +60,7 @@ function Paleta({ fechar }: { fechar: () => void }) {
   const ordens = useStore((s) => s.ordens)
   const orcamentos = useStore((s) => s.orcamentos)
   const equipamentos = useStore((s) => s.equipamentos)
+  const papel = usePapel()
   const [q, setQ] = useState('')
   const [ativo, setAtivo] = useState(0)
   const lista = useRef<HTMLDivElement>(null)
@@ -66,9 +68,9 @@ function Paleta({ fechar }: { fechar: () => void }) {
   const resultados = useMemo<Resultado[]>(() => {
     const termo = normalizar(q).trim()
     const paginas: Resultado[] = [
-      ...ITENS_NAV.map((i) => ({ id: `pg-${i.para}`, grupo: 'Ir para', titulo: i.rotulo, icone: i.icone, para: i.para })),
+      ...gruposDoPapel(papel).flatMap((g) => g.itens).map((i) => ({ id: `pg-${i.para}`, grupo: 'Ir para', titulo: i.rotulo, icone: i.icone, para: i.para })),
       { id: 'pg-assistente', grupo: 'Ir para', titulo: 'Assistente', detalhe: 'Perguntar à IA', icone: Sparkles, para: '/assistente' },
-      { id: 'pg-config', grupo: 'Ir para', titulo: 'Configurações', icone: Settings, para: '/config' },
+      { id: 'pg-config', grupo: 'Ir para', titulo: papel === 'Gestor' ? 'Configurações' : 'Meu perfil', icone: Settings, para: '/config' },
     ]
     const lerQR: Resultado = { id: 'ac-qr', grupo: 'Ações', titulo: 'Ler QR code', detalhe: 'Peça ou drone', icone: QrCode, acao: () => abrirQR() }
     if (!termo) return [lerQR, ...paginas]
@@ -77,13 +79,14 @@ function Paleta({ fechar }: { fechar: () => void }) {
     const nomeCliente = (id: string) => clientes.find((c) => c.id === id)?.nome ?? ''
     const out: Resultado[] = []
 
-    clientes.filter((c) => tem(c.nome, c.documento, c.cidade, c.fone)).slice(0, LIMITE).forEach((c) =>
+    const ok = (rota: string) => podeAcessar(papel, rota)
+    if (ok('/clientes')) clientes.filter((c) => tem(c.nome, c.documento, c.cidade, c.fone)).slice(0, LIMITE).forEach((c) =>
       out.push({ id: c.id, grupo: 'Clientes', titulo: c.nome, detalhe: `${c.cidade} - ${c.uf}`, icone: Users, para: `/clientes/${c.id}` }))
 
-    produtos.filter((p) => tem(p.nome, p.sku, p.codigoFabricante, ...p.seriais)).slice(0, LIMITE).forEach((p) =>
+    if (ok('/estoque')) produtos.filter((p) => tem(p.nome, p.sku, p.codigoFabricante, ...p.seriais)).slice(0, LIMITE).forEach((p) =>
       out.push({ id: p.id, grupo: 'Peças e produtos', titulo: p.nome, detalhe: `${p.sku}, ${p.estoque} em estoque`, icone: Package, para: `/estoque/${p.id}` }))
 
-    ordens.filter((o) => {
+    if (ok('/os')) ordens.filter((o) => {
       const eq = equipamentos.find((e) => e.id === o.equipamentoId)
       return tem(o.numero, `os ${o.numero}`, nomeCliente(o.clienteId), eq?.serial)
     }).slice(0, LIMITE).forEach((o) => {
@@ -91,16 +94,16 @@ function Paleta({ fechar }: { fechar: () => void }) {
       out.push({ id: o.id, grupo: 'Ordens de serviço', titulo: `OS ${o.numero}`, detalhe: `${nomeCliente(o.clienteId)}${eq ? `, ${nomeModelo(eq.modeloId)}` : ''}`, icone: Wrench, para: `/os/${o.id}` })
     })
 
-    orcamentos.filter((o) => tem(o.numero, `orcamento ${o.numero}`, nomeCliente(o.clienteId))).slice(0, LIMITE).forEach((o) =>
+    if (ok('/orcamentos')) orcamentos.filter((o) => tem(o.numero, `orcamento ${o.numero}`, nomeCliente(o.clienteId))).slice(0, LIMITE).forEach((o) =>
       out.push({ id: o.id, grupo: 'Orçamentos', titulo: `Orçamento ${o.numero}`, detalhe: nomeCliente(o.clienteId), icone: FileText, para: `/orcamentos/${o.id}` }))
 
-    equipamentos.filter((e) => tem(e.serial, e.apelido, nomeModelo(e.modeloId))).slice(0, LIMITE).forEach((e) =>
+    if (ok('/clientes')) equipamentos.filter((e) => tem(e.serial, e.apelido, nomeModelo(e.modeloId))).slice(0, LIMITE).forEach((e) =>
       out.push({ id: e.id, grupo: 'Drones de clientes', titulo: `${nomeModelo(e.modeloId)}${e.apelido ? ` (${e.apelido})` : ''}`, detalhe: `${e.serial}, ${nomeCliente(e.clienteId)}`, icone: Plane, para: `/clientes/${e.clienteId}` }))
 
     out.push(...paginas.filter((p) => tem(p.titulo, p.detalhe)))
     if (tem('ler qr code')) out.push(lerQR)
     return out
-  }, [q, clientes, produtos, ordens, orcamentos, equipamentos, abrirQR])
+  }, [q, clientes, produtos, ordens, orcamentos, equipamentos, abrirQR, papel])
 
   useEffect(() => { setAtivo(0) }, [q])
   useEffect(() => {
