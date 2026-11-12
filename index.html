@@ -11,9 +11,7 @@
     <script>
       (function () {
         try {
-          var p = localStorage.getItem('aero-tema');
-          var e = p === 'escuro' || (p !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (e) {
+          if (localStorage.getItem('aero-tema') === 'escuro') {
             document.documentElement.setAttribute('data-tema', 'escuro');
             document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0E1714');
           }
@@ -23,9 +21,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="./assets/index-DwCI7RJX.js"></script>
+    <script type="module" crossorigin src="./assets/index-f_ECZ32P.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/format-CoARdFTa.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-BY2L2sQa.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-DYf38jKr.css">
   <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
     <div id="root"></div>
