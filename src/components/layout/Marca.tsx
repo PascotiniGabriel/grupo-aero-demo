@@ -45,7 +45,7 @@ export function Marca({ clara, largura = 150, className }: { clara?: boolean; la
 export function MarcaCompacta({ className }: { className?: string }) {
   return (
     <span className={cx('inline-flex items-center gap-1 text-mata', className)} role="img" aria-label={NOME}>
-      <SimboloMarca tamanho={36} />
+      <SimboloMarca tamanho={26} />
       <span aria-hidden className="titulo text-[17px] tracking-tight" style={{ fontStretch: '118%' }}>Aerobrasil</span>
     </span>
   )

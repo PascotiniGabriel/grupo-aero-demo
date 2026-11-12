@@ -12,7 +12,6 @@ import { usoDeArmazenamento } from '@/store/armazenamento'
 import { useVerComo } from '@/components/layout/VerComo'
 import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
 import { usePapel } from '@/components/layout/nav'
-import { SeletorTema } from '@/components/layout/Tema'
 import { AbaChecklists } from './AbaChecklists'
 
 type Aba = 'empresa' | 'usuarios' | 'checklists' | 'offline' | 'ia' | 'dados'
@@ -96,10 +95,6 @@ function AbaUsuarios() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-      <Painel titulo="Tema da tela" className="lg:col-span-2">
-        <p className="mb-3 text-sm text-mata-suave">Escolha claro, escuro ou deixe o sistema decidir. Vale só neste aparelho. A impressão sai sempre em fundo branco.</p>
-        <SeletorTema className="max-w-md" />
-      </Painel>
       <Painel titulo="Usuários" semPadding>
         <ul className="divide-y divide-linha">
           {usuarios.map((u) => {

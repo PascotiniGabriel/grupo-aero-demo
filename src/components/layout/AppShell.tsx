@@ -6,8 +6,8 @@ import { Button, EstadoVazio, IconButton, SeloIA, Toasts, cx } from '@/component
 import { inicioDoPapel, podeAcessar, type Papel } from '@/lib/acesso'
 import { LeitorQR, useLeitorQR } from '@/components/qr/LeitorQR'
 import { BuscaGlobal, useBuscaGlobal } from './BuscaGlobal'
-import { Marca, MarcaCompacta } from './Marca'
-import { BotaoTema, SeletorTema } from './Tema'
+import { MarcaCompacta, SimboloMarca } from './Marca'
+import { BotaoTema } from './Tema'
 import { gruposDoPapel, usePapel, type ItemNav } from './nav'
 import { IndicadorSync } from './Sincronizacao'
 import { VerComo } from './VerComo'
@@ -108,8 +108,11 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
 
   return (
     <div className="flex h-full flex-col text-white">
-      <div className="flex h-24 shrink-0 items-center justify-between pl-5 pr-2">
-        <Link to="/" aria-label="Aerobrasil Drones, ir para o início" className="rounded-campo"><Marca clara largura={128} /></Link>
+      <div className="flex h-16 shrink-0 items-center justify-between pl-6 pr-2">
+        <Link to="/" aria-label="Aerobrasil Drones, ir para o início" className="inline-flex items-center gap-2.5 rounded-campo text-white">
+          <SimboloMarca tamanho={24} />
+          <span className="titulo text-[16px] tracking-tight" style={{ fontStretch: '118%' }}>Aerobrasil</span>
+        </Link>
         {aoFechar && (
           <button type="button" onClick={aoFechar} aria-label="Fechar menu" className="flex h-10 w-10 items-center justify-center rounded-campo text-white/70 hover:bg-white/10 hover:text-white">
             <X size={18} aria-hidden />
@@ -143,7 +146,6 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
           <Settings size={18} className="shrink-0" aria-hidden />
           <span className="flex-1 truncate">{papel === 'Gestor' ? 'Configurações' : 'Meu perfil'}</span>
         </NavLink>
-        <SeletorTema escuroFundo className="mb-1 mt-1" />
         <VerComo aoTrocar={aoFechar} />
       </div>
     </div>
@@ -194,7 +196,7 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
         <div className="flex-1" />
 
         <IndicadorSync />
-        <BotaoTema className="max-sm:hidden" />
+        <BotaoTema />
         <IconButton aria-label="Buscar" icone={<Search size={20} aria-hidden />} onClick={abrirBusca} className="lg:hidden" />
         <div className="hidden lg:block">
           <Button variante="secundario" icone={<QrCode size={17} aria-hidden />} onClick={() => abrirQR()}>Ler QR</Button>

@@ -11,9 +11,7 @@
     <script>
       (function () {
         try {
-          var p = localStorage.getItem('aero-tema');
-          var e = p === 'escuro' || (p !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (e) {
+          if (localStorage.getItem('aero-tema') === 'escuro') {
             document.documentElement.setAttribute('data-tema', 'escuro');
             document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0E1714');
           }
