@@ -1,6 +1,7 @@
 import type { Compromisso, Local, TipoCompromisso } from '@/types'
 import { LOCAIS_CLIENTES, OS_CAMPO } from './locais'
 import { diasAFrente } from './util'
+import { montarChecklist } from '@/lib/checklist'
 
 const T1 = 'usr-3' // Tiago Ferreira
 const T2 = 'usr-4' // Lucas Brandão
@@ -10,6 +11,24 @@ const ck = (...itens: (string | [string, boolean])[]) =>
 
 const localDe = (cli: string, i = 0): Local | undefined => LOCAIS_CLIENTES[cli]?.[i]
 const localOS = (osId: string): Local | undefined => { const o = OS_CAMPO[osId]; return o ? localDe(o[0], o[1]) : undefined }
+
+/** Serviços previstos por compromisso (início do título) e quantos itens do checklist já foram feitos. Os itens vêm dos modelos. */
+const SERVICOS_PREVISTOS: [string, string[], number][] = [
+  ['Troca do braço dianteiro, OS 1037', ['srv-braco'], 99],
+  ['Vistoria de campo, OS 1039', ['srv-revisao', 'srv-limpeza'], 0],
+  ['Atendimento em campo, OS 1035', ['srv-motor', 'srv-teste-voo'], 0],
+  ['Treinamento operacional', ['srv-treino'], 0],
+  ['Teste de bancada, OS 1037', ['srv-calibracao'], 0],
+  ['Atendimento em Cruz Alta', ['srv-limpeza'], 0],
+  ['Revisão programada do T20P', ['srv-revisao'], 0],
+  ['Vistoria inicial, OS 1034', ['srv-calibracao'], 8],
+  ['Troca dos braços, OS 1038', ['srv-braco', 'srv-calibracao'], 3],
+  ['Teste de vazão no campo, OS 1040', ['srv-teste-voo'], 0],
+  ['Diagnóstico do radar, OS 1036', ['srv-calibracao'], 0],
+  ['Atendimento em campo, OS 1034', ['srv-calibracao', 'srv-teste-voo'], 0],
+  ['Treinamento de operadores', ['srv-treino'], 0],
+  ['Revisão de 300 h', ['srv-revisao'], 0],
+]
 
 type C = {
   t: string; tipo: TipoCompromisso; titulo: string; dia: number; h: number; dur: number
@@ -55,12 +74,18 @@ export function criarCompromissos(): Compromisso[] {
     { t: T2, tipo: 'revisao_programada', titulo: 'Revisão de 300 h do T25, Fazenda Santa Luzia', dia: 6, h: 9, dur: 240, cli: 'cli-01', local: localDe('cli-01', 1),
       lista: ck('Levar kit de bicos', 'Teste de vazão com água') },
   ]
+  const checklistDe = (c: C): Compromisso['checklist'] => {
+    const prev = SERVICOS_PREVISTOS.find(([prefixo]) => c.titulo.startsWith(prefixo))
+    if (!prev) return c.lista
+    const atendimento = c.tipo === 'manutencao_oficina' ? 'oficina' : 'campo'
+    return montarChecklist({ servicoIds: prev[1], atendimento }).map((i, k) => ({ ...i, feito: k < prev[2] }))
+  }
   return lista.map((c, i) => {
     const inicio = diasAFrente(c.dia, c.h, 0)
     return {
       id: `cmp-${String(i + 1).padStart(2, '0')}`, tecnicoId: c.t, tipo: c.tipo, titulo: c.titulo,
       inicio, fim: new Date(new Date(inicio).getTime() + c.dur * 60000).toISOString(),
-      osId: c.os, clienteId: c.cli, local: c.local, status: c.status ?? 'agendado', checklist: c.lista, observacoes: c.obs,
+      osId: c.os, clienteId: c.cli, local: c.local, status: c.status ?? 'agendado', checklist: checklistDe(c), observacoes: c.obs,
     }
   })
 }

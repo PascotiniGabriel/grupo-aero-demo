@@ -10,6 +10,7 @@ import { useMoverOS } from './useMoverOS'
 import { CampoDitado } from './CampoDitado'
 import { GerenciadorFotos } from './FotosOS'
 import { PecasServicosOS } from './PecasServicosOS'
+import { AgendaChecklistOS } from './AgendaChecklistOS'
 import { CartaoLocal, EditorLocal } from './LocalUI'
 import { CompromissoGaveta } from '@/pages/agenda/CompromissoGaveta'
 import { quando } from '@/pages/agenda/agendaUtil'
@@ -125,6 +126,8 @@ export default function OSDetalhe() {
           </div>
         )}
       </Painel>
+
+      <AgendaChecklistOS os={os} />
 
       <Abas
         className="mb-4"

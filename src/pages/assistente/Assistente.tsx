@@ -4,30 +4,62 @@ import { ArrowUpRight, BookOpen, Database, Plus } from 'lucide-react'
 import { Button, CabecalhoPagina, SeloIA, cx } from '@/components/ui'
 import { AIComposer } from '@/components/ia/AIComposer'
 import { AIPensando } from '@/components/ia/AIPensando'
+import { useStore } from '@/store'
+import type { Papel } from '@/lib/acesso'
+import { PERFIL_IA } from '@/lib/ai/assistente'
 import { Markdown } from './Markdown'
 import { BaseConhecimento } from './BaseConhecimento'
 import { useAssistente, type MensagemChat } from './store'
 
-const GRUPOS: { titulo: string; perguntas: string[] }[] = [
+type Grupo = { titulo: string; perguntas: string[] }
+
+const GRUPOS_POR_PAPEL: Record<Papel, Grupo[]> = {
+  Gestor: [
   { titulo: 'Estoque', perguntas: ['Quais peças mais saem?', 'O que preciso comprar?', 'Quais peças estão paradas há mais de 90 dias?', 'Quanto pesa 2 pares de hélice do T40 e 1 bomba?'] },
   { titulo: 'Oficina', perguntas: ['Quais OS estão atrasadas?', 'Quantas OS cada técnico tem em aberto?', 'Qual modelo mais passa pela oficina?', 'Qual o histórico do drone Frota 01?'] },
   { titulo: 'Vendas', perguntas: ['Quais orçamentos aguardam resposta?', 'Como está o funil de vendas?', 'Quanto custa o drone T50?', 'Histórico da Fazenda Santa Luzia'] },
   { titulo: 'Financeiro', perguntas: ['Quanto faturamos este mês?', 'Compare o faturamento com o mês passado', 'Quais contas a receber estão vencidas?', 'Quais contas a pagar vencem em breve?'] },
   { titulo: 'Técnico', perguntas: ['Em quais drones serve o parafuso da hélice?', 'Quais peças servem no T40?', 'Como limpar o sistema de pulverização após a aplicação?', 'Qual o checklist depois de uma queda?'] },
-]
+],
+  Vendas: [
+    { titulo: 'Clientes', perguntas: ['Histórico da Fazenda Santa Luzia', 'Qual o histórico do drone Frota 01?', 'Qual o status das OS da Fazenda Santa Luzia?'] },
+    { titulo: 'Orçamentos e funil', perguntas: ['Quais orçamentos aguardam resposta?', 'Quais são meus orçamentos em aberto?', 'Como está o funil de vendas?'] },
+    { titulo: 'Preços e peças', perguntas: ['Quanto custa o drone T50?', 'Em quais drones serve o parafuso da hélice?', 'Tem hélice do T40 em estoque?'] },
+    { titulo: 'Frete', perguntas: ['Quanto pesa 2 pares de hélice do T40 e 1 bomba?', 'Peso de 2 hélices do T40 e 4 bicos'] },
+  ],
+  Técnico: [
+    { titulo: 'Oficina', perguntas: ['Quais são minhas OS em aberto?', 'Quais das minhas OS estão atrasadas?', 'Qual o histórico do drone Frota 01?'] },
+    { titulo: 'Agenda', perguntas: ['Qual minha agenda de hoje?', 'Qual minha agenda de amanhã?'] },
+    { titulo: 'Procedimentos técnicos', perguntas: ['Qual o checklist depois de uma queda?', 'Qual o intervalo de revisão de 100 h?', 'Como limpar o sistema de pulverização após a aplicação?', 'Como calibrar a bússola e o IMU?'] },
+    { titulo: 'Peças', perguntas: ['Quais peças servem no drone da OS 1039?', 'Onde está a hélice do T40 no estoque?', 'Em quais drones serve o parafuso da hélice?'] },
+  ],
+  Estoque: [
+    { titulo: 'Giro', perguntas: ['Quais peças mais saem?', 'Quais peças estão paradas há mais de 90 dias?'] },
+    { titulo: 'Compras', perguntas: ['O que preciso comprar?', 'Quanto custa o motor do T40?'] },
+    { titulo: 'Entradas', perguntas: ['Quais notas de entrada chegaram?'] },
+    { titulo: 'Peças', perguntas: ['Onde está a hélice do T40?', 'Quanto pesa 2 pares de hélice do T40 e 1 bomba?', 'Quais OS estão em aberto?'] },
+  ],
+}
+
+const PLACEHOLDER: Record<Papel, string> = {
+  Gestor: 'Pergunte sobre estoque, peças, OS, clientes ou financeiro',
+  Vendas: 'Pergunte sobre clientes, orçamentos, preços ou peças',
+  Técnico: 'Pergunte sobre suas OS, agenda, procedimentos ou peças',
+  Estoque: 'Pergunte sobre estoque, giro, compras ou peças',
+}
 
 const ETAPAS = ['Entendendo a pergunta', 'Consultando os dados', 'Montando a resposta']
 
-function Inicio({ aoPerguntar }: { aoPerguntar: (p: string) => void }) {
+function Inicio({ aoPerguntar, papel }: { aoPerguntar: (p: string) => void; papel: Papel }) {
   return (
     <div className="mx-auto max-w-3xl py-2">
       <div className="mb-6 flex items-center gap-2">
         <SeloIA>Assistente</SeloIA>
       </div>
       <h2 className="text-xl">O que você quer saber hoje?</h2>
-      <p className="mt-1 text-sm text-mata-suave">Pergunte do seu jeito, por texto ou voz. Eu consulto o estoque, as OS, os orçamentos, o financeiro e o catálogo de peças.</p>
+      <p className="mt-1 text-sm text-mata-suave">Pergunte do seu jeito, por texto ou voz. Eu consulto {PERFIL_IA[papel].apresentacao}.</p>
       <div className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2">
-        {GRUPOS.map((g) => (
+        {GRUPOS_POR_PAPEL[papel].map((g) => (
           <section key={g.titulo}>
             <h3 className="mb-1 text-sm font-semibold text-mata-suave">{g.titulo}</h3>
             <ul className="divide-y divide-linha border-y border-linha">
@@ -92,13 +124,21 @@ export default function Assistente() {
   const carregando = useAssistente((s) => s.carregando)
   const enviar = useAssistente((s) => s.enviar)
   const nova = useAssistente((s) => s.nova)
+  const dono = useAssistente((s) => s.dono)
+  const usuarioId = useStore((s) => s.usuarioAtualId)
+  const papel = useStore((s) => s.usuarios.find((u) => u.id === s.usuarioAtualId)?.papel ?? 'Gestor')
   const [texto, setTexto] = useState('')
   const [baseAberta, setBaseAberta] = useState(false)
   const [params, setParams] = useSearchParams()
   const rolagem = useRef<HTMLDivElement>(null)
   const jaEnviou = useRef<string | null>(null)
 
-  // ?q=<pergunta> envia ao abrir
+  // trocar de perfil descarta a conversa (evita mostrar resposta de outro perfil)
+  useEffect(() => {
+    if (dono !== undefined && dono !== usuarioId) nova()
+  }, [dono, usuarioId, nova])
+
+  // ?q=<pergunta> envia ao abrir (passa pelo mesmo filtro do perfil)
   useEffect(() => {
     const q = params.get('q')
     if (q && jaEnviou.current !== q) {
@@ -128,7 +168,7 @@ export default function Assistente() {
     <>
       <CabecalhoPagina
         titulo="Assistente"
-        descricao="Faça perguntas sobre estoque, peças, oficina, vendas e financeiro."
+        descricao={PERFIL_IA[papel].subtitulo}
         acoes={
           <>
             {msgs.length > 0 && <Button variante="secundario" icone={<Plus size={16} />} onClick={nova}>Nova conversa</Button>}
@@ -142,7 +182,7 @@ export default function Assistente() {
         <section className="flex h-[calc(100dvh-22rem)] min-h-[400px] min-w-0 flex-col rounded-painel border border-linha bg-papel lg:h-[calc(100dvh-14rem)]" aria-label="Conversa com o assistente">
           <div ref={rolagem} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6">
             {msgs.length === 0 ? (
-              <Inicio aoPerguntar={perguntar} />
+              <Inicio aoPerguntar={perguntar} papel={papel} />
             ) : (
               <div className="mx-auto flex max-w-3xl flex-col gap-6">
                 {msgs.map((m, i) => (
@@ -157,7 +197,7 @@ export default function Assistente() {
               <AIComposer
                 valor={texto} aoMudar={setTexto} aoEnviar={() => perguntar(texto)} carregando={carregando}
                 rotuloEnviar="Perguntar" linhas={1}
-                placeholder="Pergunte sobre estoque, peças, OS, clientes ou financeiro"
+                placeholder={PLACEHOLDER[papel]}
               />
             </div>
           </div>

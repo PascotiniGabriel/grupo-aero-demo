@@ -40,7 +40,11 @@ export interface Movimentacao {
   valorUnit: number
 }
 
-export interface Servico { id: string; nome: string; preco: number; horas: number }
+export interface Servico {
+  id: string; nome: string; preco: number; horas: number
+  /** Obrigações do serviço: viram itens do checklist do compromisso. */
+  checklist?: string[]
+}
 
 /** Ponto no mapa (área rural: as coordenadas são o dado principal). */
 export interface Local {
@@ -147,10 +151,17 @@ export interface Conversa {
 
 export interface Usuario { id: string; nome: string; papel: 'Gestor' | 'Vendas' | 'Técnico' | 'Estoque' }
 
-export interface Empresa { nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string; unidades: string[] }
+export interface Empresa {
+  nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string; unidades: string[]
+  /** Modelos de checklist por tipo de atendimento (ausente = padrão do seed). */
+  checklistAtendimento?: { campo: string[]; oficina: string[] }
+}
 
 export type TipoCompromisso = 'atendimento_campo' | 'manutencao_oficina' | 'entrega' | 'treinamento' | 'revisao_programada' | 'outro'
 export type StatusCompromisso = 'agendado' | 'em_andamento' | 'concluido' | 'cancelado'
+
+/** Item de checklist; `origem` diz de onde veio (serviço ou tipo de atendimento). */
+export interface ItemChecklist { texto: string; feito: boolean; origem?: string }
 
 export interface Compromisso {
   id: string
@@ -162,7 +173,7 @@ export interface Compromisso {
   osId?: string; clienteId?: string
   local?: Local
   status: StatusCompromisso
-  checklist?: { texto: string; feito: boolean }[]
+  checklist?: ItemChecklist[]
   observacoes?: string
 }
 

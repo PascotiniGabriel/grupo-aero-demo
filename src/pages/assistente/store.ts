@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { useStore, novoId } from '@/store'
 import { responder, type LinkResposta } from '@/lib/ai/assistente'
+import type { Papel } from '@/lib/acesso'
 import { diasAtras } from '@/data/seed'
 
 export interface MensagemChat {
@@ -39,7 +40,17 @@ function documentosIniciais(): DocumentoBase[] {
   ]
 }
 
+/** Tipos de documento da base de conhecimento que cada papel enxerga (o técnico não vê tabela de preços). */
+export const TIPOS_DOC_POR_PAPEL: Record<Papel, DocumentoBase['tipo'][]> = {
+  Gestor: ['Catálogo', 'Manual', 'Preços', 'Procedimento'],
+  Vendas: ['Catálogo', 'Preços'],
+  Técnico: ['Catálogo', 'Manual', 'Procedimento'],
+  Estoque: ['Catálogo', 'Manual', 'Procedimento'],
+}
+
 interface Estado {
+  /** Usuário a quem pertence a conversa atual; trocar de perfil descarta a conversa. */
+  dono?: string
   msgs: MensagemChat[]
   carregando: boolean
   docs: DocumentoBase[]
@@ -56,10 +67,14 @@ export const useAssistente = create<Estado>()((set, get) => ({
   enviar: async (texto) => {
     const pergunta = texto.trim()
     if (!pergunta || get().carregando) return
-    const historico = get().msgs.map((m) => ({ papel: m.papel, texto: m.texto }))
-    set((s) => ({ msgs: [...s.msgs, { id: novoId('msg'), papel: 'usuario', texto: pergunta }], carregando: true }))
+    const estado = useStore.getState()
+    const usuario = estado.usuarios.find((u) => u.id === estado.usuarioAtualId)
+    const outroPerfil = get().dono !== undefined && get().dono !== usuario?.id
+    const anteriores = outroPerfil ? [] : get().msgs
+    const historico = anteriores.map((m) => ({ papel: m.papel, texto: m.texto }))
+    set({ dono: usuario?.id, msgs: [...anteriores, { id: novoId('msg'), papel: 'usuario', texto: pergunta }], carregando: true })
     try {
-      const r = await responder(pergunta, historico, useStore.getState())
+      const r = await responder(pergunta, historico, estado, { papel: usuario?.papel ?? 'Gestor', usuario })
       set((s) => ({
         msgs: [...s.msgs, { id: novoId('msg'), papel: 'ia', texto: r.texto, links: r.links, fonte: r.fonte, continuacoes: r.continuacoes }],
       }))
@@ -72,7 +87,7 @@ export const useAssistente = create<Estado>()((set, get) => ({
     }
   },
 
-  nova: () => set({ msgs: [], carregando: false }),
+  nova: () => set({ msgs: [], carregando: false, dono: undefined }),
 
   adicionarDocumento: ({ nome, tamanhoKb }) => {
     const id = novoId('doc')

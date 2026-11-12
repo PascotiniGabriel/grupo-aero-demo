@@ -13,11 +13,13 @@ import { useVerComo } from '@/components/layout/VerComo'
 import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
 import { usePapel } from '@/components/layout/nav'
 import { SeletorTema } from '@/components/layout/Tema'
+import { AbaChecklists } from './AbaChecklists'
 
-type Aba = 'empresa' | 'usuarios' | 'offline' | 'ia' | 'dados'
+type Aba = 'empresa' | 'usuarios' | 'checklists' | 'offline' | 'ia' | 'dados'
 const ABAS: { id: Aba; rotulo: string }[] = [
   { id: 'empresa', rotulo: 'Empresa' },
   { id: 'usuarios', rotulo: 'Usuários' },
+  { id: 'checklists', rotulo: 'Checklists' },
   { id: 'offline', rotulo: 'Uso sem internet' },
   { id: 'ia', rotulo: 'Inteligência artificial' },
   { id: 'dados', rotulo: 'Dados da demonstração' },
@@ -350,6 +352,7 @@ export default function Config() {
       <Abas abas={abas} ativa={ativa} aoMudar={(id) => setAba(id as Aba)} className="mb-4" />
       {ativa === 'empresa' && <AbaEmpresa />}
       {ativa === 'usuarios' && <AbaUsuarios />}
+      {ativa === 'checklists' && <AbaChecklists />}
       {ativa === 'offline' && <AbaOffline />}
       {ativa === 'ia' && <AbaIA />}
       {ativa === 'dados' && <AbaDados />}

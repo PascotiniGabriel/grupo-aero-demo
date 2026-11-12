@@ -3,6 +3,7 @@ import { criarClientes, criarEquipamentos, EMPRESA, SERVICOS, USUARIOS } from '.
 import { criarProdutos, MODELOS } from './produtos'
 import { criarComercial } from './comercial'
 import { criarCompromissos } from './agenda'
+import { CHECKLIST_ATENDIMENTO } from './checklists'
 import { LOCAIS_CLIENTES, OS_CAMPO } from './locais'
 import { criarLancamentos, criarMovimentacoes, criarNotas } from './financeiro'
 
@@ -14,12 +15,15 @@ export function criarDadosDemo(): Dados {
   const clientes = criarClientes()
   const { orcamentos, ordens, leads, conversas } = criarComercial(produtos, SERVICOS)
   return {
-    empresa: { ...EMPRESA, unidades: [...EMPRESA.unidades] },
+    empresa: {
+      ...EMPRESA, unidades: [...EMPRESA.unidades],
+      checklistAtendimento: { campo: [...CHECKLIST_ATENDIMENTO.campo], oficina: [...CHECKLIST_ATENDIMENTO.oficina] },
+    },
     usuarios: USUARIOS.map((u) => ({ ...u })),
     modelos: MODELOS.map((m) => ({ ...m })),
     produtos,
     movimentacoes: criarMovimentacoes(produtos),
-    servicos: SERVICOS.map((s) => ({ ...s })),
+    servicos: SERVICOS.map((s) => ({ ...s, checklist: [...(s.checklist ?? [])] })),
     clientes: clientes.map((c) => (LOCAIS_CLIENTES[c.id] ? { ...c, locais: LOCAIS_CLIENTES[c.id].map((l) => ({ ...l })) } : c)),
     equipamentos: criarEquipamentos(),
     orcamentos,

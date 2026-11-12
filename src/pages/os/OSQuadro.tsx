@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Camera, FileText, LayoutGrid, List, MapPin, Plus, Wrench } from 'lucide-react'
+import { Camera, FileText, ListChecks, LayoutGrid, List, MapPin, Plus, Wrench } from 'lucide-react'
 import { useStore } from '@/store'
 import { Button, CabecalhoPagina, CampoBusca, EstadoVazio, Painel, Select, SeloStatus, Tabela, cx, type Coluna } from '@/components/ui'
 import { dataCurta, normalizar } from '@/lib/format'
+import { progressoChecklist } from '@/lib/checklist'
 import { nomeModelo, porId } from '@/store/selectors'
 import type { OrdemServico, StatusOS } from '@/types'
 import { ROTULO_COLUNA, STATUS_ORDEM, atrasada } from './status'
@@ -16,6 +17,7 @@ export default function OSQuadro() {
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
   const usuarios = useStore((s) => s.usuarios)
+  const compromissos = useStore((s) => s.compromissos)
   const navegar = useNavigate()
   const [params, setParams] = useSearchParams()
   const { mover, dialogo } = useMoverOS()
@@ -36,6 +38,16 @@ export default function OSQuadro() {
     if (params.has('novo')) { const p = new URLSearchParams(params); p.delete('novo'); setParams(p, { replace: true }) }
   }
 
+  const progressoPorOS = useMemo(() => {
+    const m: Record<string, { feitos: number; total: number }> = {}
+    for (const c of compromissos ?? []) {
+      if (!c.osId || c.status === 'cancelado') continue
+      const { feitos, total } = progressoChecklist(c.checklist)
+      const a = m[c.osId] ?? { feitos: 0, total: 0 }
+      m[c.osId] = { feitos: a.feitos + feitos, total: a.total + total }
+    }
+    return m
+  }, [compromissos])
   const tecnicos = useMemo(() => usuarios.filter((u) => u.papel === 'Técnico'), [usuarios])
   const filtradas = useMemo(() => {
     const q = normalizar(busca).trim()
@@ -70,7 +82,7 @@ export default function OSQuadro() {
     <>
       <CabecalhoPagina
         titulo="Ordens de serviço" descricao="Drones na oficina, etapa por etapa."
-        acoes={<Button icone={<Plus size={18} />} onClick={() => setNovaAberta(true)}>Nova OS</Button>}
+        acoes={<Button icone={<Plus size={18} />} onClick={() => setNovaAberta(true)}>Lançar OS</Button>}
       />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="min-w-[200px] flex-1 sm:max-w-xs"><CampoBusca valor={busca} aoMudar={setBusca} placeholder="Buscar por cliente, número ou serial" /></div>
@@ -98,7 +110,7 @@ export default function OSQuadro() {
       </div>
 
       {filtradas.length === 0 ? (
-        <Painel><EstadoVazio icone={<Wrench size={32} />} titulo="Nenhuma OS encontrada" texto="Ajuste os filtros ou abra uma nova ordem de serviço." acao={<Button onClick={() => setNovaAberta(true)}>Nova OS</Button>} /></Painel>
+        <Painel><EstadoVazio icone={<Wrench size={32} />} titulo="Nenhuma OS encontrada" texto="Ajuste os filtros ou abra uma nova ordem de serviço." acao={<Button onClick={() => setNovaAberta(true)}>Lançar OS</Button>} /></Painel>
       ) : visao === 'lista' ? (
         <Painel semPadding><Tabela colunas={colunasLista} dados={filtradas} chave={(o) => o.id} aoClicar={(o) => navegar(`/os/${o.id}`)} ordemInicial={{ coluna: 'num', direcao: 'desc' }} /></Painel>
       ) : (
@@ -128,6 +140,7 @@ export default function OSQuadro() {
                               <span className="num text-sm font-semibold">OS {o.numero}</span>
                               <span className="flex items-center gap-1.5 text-mata-suave">
                                 {o.atendimento === 'campo' && <span title="Atendimento em campo" className="inline-flex items-center gap-0.5 rounded-full bg-ceu-claro px-1.5 text-xs font-medium text-ceu-texto"><MapPin size={12} />Campo</span>}
+                                {progressoPorOS[o.id]?.total > 0 && <span title="Checklist do técnico" className="inline-flex items-center gap-0.5 text-xs"><ListChecks size={14} /><span className="num">{progressoPorOS[o.id].feitos}/{progressoPorOS[o.id].total}</span></span>}
                                 {o.fotos.length > 0 && <span title={`${o.fotos.length} fotos`} className="inline-flex items-center gap-0.5 text-xs"><Camera size={14} /><span className="num">{o.fotos.length}</span></span>}
                                 {o.relatorio && <span title="Tem relatório"><FileText size={14} className="text-lavoura-texto" /></span>}
                               </span>

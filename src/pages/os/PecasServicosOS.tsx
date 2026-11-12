@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, Plus, QrCode, Trash2 } from 'lucide-react'
 import { novoId, useStore } from '@/store'
-import { Button, CampoBusca, EstadoVazio, IconButton, Painel, Select, Selo, cx, toast } from '@/components/ui'
+import { Button, CampoBusca, Confirmar, EstadoVazio, IconButton, Painel, Select, Selo, cx, toast } from '@/components/ui'
 import { useLeitorQR, localizarCodigo } from '@/components/qr/LeitorQR'
 import { buscarProdutos } from '@/lib/ai'
 import { brl } from '@/lib/format'
 import { diasAFrente } from '@/data/seed'
 import { totalItens } from '@/store/selectors'
-import type { ItemComercial, OrdemServico, Produto } from '@/types'
+import { checklistDoServico, mesclarChecklist } from '@/lib/checklist'
+import type { ItemComercial, OrdemServico, Produto, Servico } from '@/types'
 
 export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: string | undefined }) {
   const produtos = useStore((s) => s.produtos)
@@ -22,6 +23,8 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
   const { abrir } = useLeitorQR()
   const [busca, setBusca] = useState('')
   const [todas, setTodas] = useState(false)
+  const compromissos = useStore((s) => s.compromissos)
+  const [perguntaChecklist, setPerguntaChecklist] = useState<Servico | null>(null)
 
   const base = useMemo(
     () => produtos.filter((p) => p.tipo !== 'drone' && (todas || !modeloId || p.modelosCompativeis.length === 0 || p.modelosCompativeis.includes(modeloId))),
@@ -29,6 +32,7 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
   )
   const resultados = useMemo(() => (busca.trim() ? buscarProdutos(busca, base, 6) : []), [busca, base])
 
+  const compromissoLigado = (compromissos ?? []).filter((c) => c.osId === os.id && (c.status === 'agendado' || c.status === 'em_andamento')).sort((a, b) => a.inicio.localeCompare(b.inicio))[0]
   const gravar = (itens: ItemComercial[]) => salvar('ordens', { ...os, itens })
   function adicionarPeca(p: Produto) {
     const existente = os.itens.find((i) => i.produtoId === p.id)
@@ -41,6 +45,15 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
     const s = servicos.find((x) => x.id === id)
     if (!s) return
     gravar([...os.itens, { id: novoId('it'), tipo: 'servico', servicoId: s.id, descricao: s.nome, quantidade: 1, valorUnit: s.preco }])
+    if (compromissoLigado && checklistDoServico(s).length > 0) setPerguntaChecklist(s)
+  }
+  function levarParaChecklist() {
+    const s = perguntaChecklist
+    setPerguntaChecklist(null)
+    if (!s || !compromissoLigado) return
+    const novos = checklistDoServico(s).map((texto) => ({ texto, feito: false, origem: s.nome }))
+    salvar('compromissos', { ...compromissoLigado, checklist: mesclarChecklist(compromissoLigado.checklist, novos) })
+    toast.sucesso('Obrigações do serviço adicionadas ao checklist')
   }
   const alterar = (id: string, parcial: Partial<ItemComercial>) => gravar(os.itens.map((i) => (i.id === id ? { ...i, ...parcial } : i)))
 
@@ -146,6 +159,11 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
           </div>
         )}
       </Painel>
+      <Confirmar
+        aberto={!!perguntaChecklist} titulo="Adicionar as obrigações deste serviço ao checklist?"
+        texto={perguntaChecklist ? `${perguntaChecklist.nome}: ${checklistDoServico(perguntaChecklist).length} itens entram no checklist do compromisso do técnico.` : undefined}
+        rotuloConfirmar="Adicionar ao checklist" aoCancelar={() => setPerguntaChecklist(null)} aoConfirmar={levarParaChecklist}
+      />
     </div>
   )
 }

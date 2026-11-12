@@ -7,6 +7,7 @@ import { dataCurta } from '@/lib/format'
 import { atrasada } from '@/pages/os/status'
 import type { Compromisso, Usuario } from '@/types'
 import { CartaoCompromisso } from './CartaoCompromisso'
+import { BarraProgresso } from './ChecklistUI'
 import { CompromissoGaveta, type CompromissoInicial } from './CompromissoGaveta'
 import { CORES_TECNICO, chaveDia, diaLongo, faixaHora, horaDe, inicioSemana, nomeDia, pendente, somarDias } from './agendaUtil'
 
@@ -127,6 +128,7 @@ export default function Agenda() {
                           className={cx('block min-h-10 w-full rounded-campo border border-linha border-l-4 bg-papel p-2 text-left text-xs hover:bg-nevoa', corDe(c.tecnicoId).barra, c.status === 'concluido' && 'opacity-60', c.status === 'cancelado' && 'line-through opacity-50')}>
                           <span className="num font-semibold">{horaDe(c.inicio)}</span>
                           <span className="mt-0.5 block leading-snug">{c.titulo}</span>
+                          {(c.checklist?.length ?? 0) > 0 && <span className="mt-1.5 block"><BarraProgresso lista={c.checklist} compacta /></span>}
                         </button>
                       </li>
                     ))}

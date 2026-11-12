@@ -3,12 +3,15 @@ import { BookOpen, CheckCircle2, FilePlus2, FileText, Loader2 } from 'lucide-rea
 import { Button, Painel, Selo, type CorSelo } from '@/components/ui'
 import { dataCurta } from '@/lib/format'
 import { toast } from '@/components/ui'
-import { useAssistente } from './store'
+import { useStore } from '@/store'
+import { useAssistente, TIPOS_DOC_POR_PAPEL } from './store'
 
 const COR_TIPO: Record<string, CorSelo> = { Catálogo: 'verde', Manual: 'azul', Preços: 'ambar', Procedimento: 'neutro' }
 
 export function BaseConhecimento() {
-  const docs = useAssistente((s) => s.docs)
+  const todos = useAssistente((s) => s.docs)
+  const papel = useStore((s) => s.usuarios.find((u) => u.id === s.usuarioAtualId)?.papel ?? 'Gestor')
+  const docs = todos.filter((d) => TIPOS_DOC_POR_PAPEL[papel].includes(d.tipo))
   const adicionar = useAssistente((s) => s.adicionarDocumento)
   const entrada = useRef<HTMLInputElement>(null)
 

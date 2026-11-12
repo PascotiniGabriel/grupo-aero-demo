@@ -5,15 +5,26 @@ import type { Cliente, Dados, Equipamento, OrdemServico, Produto, Usuario } from
 import { brl, dataCurta, normalizar, numero, peso, relativo } from '../format'
 import { saidasPorProduto, totalItens, totalOrcamento } from '@/store/selectors'
 import { chamarGemini, esperar, iaReal } from './index'
+import { ASSUNTOS_IA, podeAcessar, type Assunto, type Papel } from '../acesso'
 
 export interface LinkResposta { rotulo: string; rota: string }
-export interface RespostaAssistente { texto: string; links: LinkResposta[]; fonte: string; continuacoes: string[] }
+export interface RespostaAssistente { texto: string; links: LinkResposta[]; fonte: string; continuacoes: string[]; bloqueada?: boolean }
+/** Quem está perguntando: define o que o assistente pode responder. Sem contexto, vale o perfil Gestor. */
+export interface ContextoIA { papel: Papel; usuario?: Usuario }
+
+let CTX: ContextoIA = { papel: 'Gestor' }
+const pode = (a: Assunto) => ASSUNTOS_IA[CTX.papel].has(a)
+function comCtx<T>(ctx: ContextoIA | undefined, fn: () => T): T {
+  const ant = CTX
+  CTX = ctx ?? { papel: 'Gestor' }
+  try { return fn() } finally { CTX = ant }
+}
 export interface MensagemHistorico { papel: 'usuario' | 'ia'; texto: string }
 
 type Intencao =
   | 'saudacao' | 'tecnica' | 'peso' | 'compat_peca' | 'compat_modelo' | 'os_detalhe' | 'orcamento_detalhe'
   | 'mais_vendidas' | 'paradas' | 'estoque_baixo' | 'faturamento' | 'contas' | 'orcamentos' | 'os_abertas'
-  | 'servico_mais' | 'modelo_mais' | 'funil' | 'cliente' | 'peca' | 'fallback'
+  | 'servico_mais' | 'modelo_mais' | 'funil' | 'cliente' | 'peca' | 'agenda' | 'notas' | 'fallback'
 
 interface Periodo { ini: Date; fim: Date; rotulo: string; frase: string; tipo: 'mes' | 'dias' | 'ano' | 'semana' | 'dia' }
 
@@ -286,7 +297,11 @@ function detectar(orig: string, d: Dados): Consulta {
   const equipamento = detectarEquipamento(q, d)
   const cliente = equipamento ? d.clientes.find((c) => c.id === equipamento.clienteId) : detectarCliente(q, d)
   const periodo = lerPeriodo(q)
-  const usuario = detectarUsuario(q, d)
+  let usuario = detectarUsuario(q, d)
+  if (!usuario && CTX.usuario && tem(q, /\b(minhas?|meus?)\b/)) {
+    if (CTX.papel === 'Técnico' && tem(q, /\bos\b|ordens|servic|fila|trabalho|atrasad|abert|manuten/)) usuario = CTX.usuario
+    if (CTX.papel === 'Vendas' && tem(q, /orcament|funil|lead|negoc/)) usuario = CTX.usuario
+  }
   const produtos = acharProdutos(palavras, modelos, q, d)
   const c: Consulta = { intencao: 'fallback', q, orig, palavras, modelos, produtos, cliente, equipamento, periodo, usuario }
   const nTokens = tokens(q).length
@@ -306,8 +321,15 @@ function detectar(orig: string, d: Dados): Consulta {
   if (nTokens <= 7 && (tem(q, /^(oi|ola|opa|bom dia|boa tarde|boa noite|e ai|eai|hey|ajuda|help|menu)\b/) || tem(q, /o que (voce )?(sabe|pode|faz)|como (voce )?(pode )?(me )?(ajudar|funciona)|quem (e )?voce|^ajuda/))) {
     return { ...c, intencao: 'saudacao' }
   }
+  // 2b. agenda
+  if (tem(q, /\bagenda\b|compromisso|meu dia\b|o que (eu )?tenho (para |pra )?(hoje|amanha)|visitas?\b|atendimentos? de campo/)) return { ...c, intencao: 'agenda' }
   // 3. número de OS / orçamento
   const nOS = /\bos\s*#?\s*(\d{3,4})\b|ordem( de servico)?\s*#?\s*(\d{3,4})\b/.exec(q)
+  if (nOS && tem(q, /\b(serve|servem|compativel|compativeis|compatibilidade)\b|pecas/) && !produtos.length) {
+    const os = d.ordens.find((o) => o.numero === Number(nOS[1] ?? nOS[3]))
+    const eq = os && d.equipamentos.find((e) => e.id === os.equipamentoId)
+    if (eq) return { ...c, intencao: 'compat_modelo', modelos: [eq.modeloId], palavras: [], numero: os.numero }
+  }
   if (nOS) return { ...c, intencao: 'os_detalhe', numero: Number(nOS[1] ?? nOS[3]) }
   const nOrc = /orcamento\s*(?:n[o]?\.?\s*)?#?(\d{4})\b/.exec(q)
   if (nOrc) return { ...c, intencao: 'orcamento_detalhe', numero: Number(nOrc[1]) }
@@ -329,6 +351,7 @@ function detectar(orig: string, d: Dados): Consulta {
     return { ...c, intencao: produtos.length ? 'peca' : 'estoque_baixo' }
   }
   // 7. negócio
+  if (tem(q, /notas? (fiscal|fiscais|de entrada)|nota fiscal|\bnfs?(-?e)?\b|\bxml\b|entrada (de|por) nota|recebimento de mercadoria/)) return { ...c, intencao: 'notas' }
   if (tem(q, /orcament|cotac|proposta/) && !tem(q, /lead|funil/)) return { ...c, intencao: 'orcamentos' }
   if (tem(q, /(servico|manutencao|reparo|conserto)s?.*(mais|que mais)|mais (feito|comum|frequente|realizad|executad)|defeito mais|problema mais/)) return { ...c, intencao: 'servico_mais' }
   if (tem(q, /(modelo|drone)s?.*(mais (atendid|aparec|entra|vem|quebr|manutenc|frequent|comum|vend)|que mais)/) || tem(q, /qual (modelo|drone).*mais/)) return { ...c, intencao: 'modelo_mais' }
@@ -427,8 +450,9 @@ function rMaisVendidas(c: Consulta, d: Dados): RespostaAssistente {
   }
   const total = lista.reduce((a, p) => a + (s[p.id]?.qtd ?? 0), 0)
   const top3 = topo.slice(0, 3).reduce((a, p) => a + (s[p.id]?.qtd ?? 0), 0)
-  const linhas = topo.map((p, i) => [String(i + 1), lp(p), numero(s[p.id].qtd), brl(s[p.id].valor), un(p.estoque)])
-  const texto = `${per.frase[0].toUpperCase()}${per.frase.slice(1)}, as peças${escopo} que mais saíram foram:\n\n${tabela(['#', 'Peça', 'Saídas', 'Valor vendido', 'Estoque hoje'], linhas, [2, 3, 4])}\n\n`
+  const vv = pode('faturamento')
+  const linhas = topo.map((p, i) => [String(i + 1), lp(p), numero(s[p.id].qtd), ...(vv ? [brl(s[p.id].valor)] : []), un(p.estoque)])
+  const texto = `${per.frase[0].toUpperCase()}${per.frase.slice(1)}, as peças${escopo} que mais saíram foram:\n\n${tabela(['#', 'Peça', 'Saídas', ...(vv ? ['Valor vendido'] : []), 'Estoque hoje'], linhas, vv ? [2, 3, 4] : [2, 3])}\n\n`
     + `A líder é **${topo[0].nome}**, com ${plural(s[topo[0].id].qtd, 'unidade', 'unidades')}. As três primeiras somam **${numero(Math.round((top3 / total) * 100))}%** das unidades que saíram.`
   const baixa = topo.filter((p) => p.estoque <= p.estoqueMinimo)
   const alerta = baixa.length ? `\n\nAtenção: ${baixa.map((p) => `**${p.nome}**`).join(', ')} ${baixa.length === 1 ? 'está' : 'estão'} no mínimo ou abaixo dele, apesar do giro alto.` : ''
@@ -450,9 +474,10 @@ function rParadas(c: Consulta, d: Dados): RespostaAssistente {
   lista.sort((a, b) => b.estoque * b.custo - a.estoque * a.custo)
   if (!lista.length) return resp(`Nenhuma peça com estoque ficou sem saída **${per.frase}**. O giro está saudável.`, { fonte: 'Movimentações de estoque', continuacoes: ['Quais peças mais saem?'] })
   const capital = lista.reduce((a, p) => a + p.estoque * p.custo, 0)
-  const linhas = lista.slice(0, 10).map((p) => [lp(p), un(p.estoque), ultima[p.id] ? relativo(ultima[p.id]) : 'sem saída registrada', brl(p.estoque * p.custo)])
-  const texto = `**${plural(lista.length, 'peça sem saída', 'peças sem saída')}** ${per.frase}, com **${brl(capital)}** em estoque parado (a preço de custo):\n\n`
-    + `${tabela(['Peça', 'Estoque', 'Última saída', 'Capital parado'], linhas, [1, 3])}`
+  const vc = pode('custo_margem')
+  const linhas = lista.slice(0, 10).map((p) => [lp(p), un(p.estoque), ultima[p.id] ? relativo(ultima[p.id]) : 'sem saída registrada', ...(vc ? [brl(p.estoque * p.custo)] : [])])
+  const texto = `**${plural(lista.length, 'peça sem saída', 'peças sem saída')}** ${per.frase}${vc ? `, com **${brl(capital)}** em estoque parado (a preço de custo)` : ''}:\n\n`
+    + `${tabela(['Peça', 'Estoque', 'Última saída', ...(vc ? ['Capital parado'] : [])], linhas, vc ? [1, 3] : [1])}`
     + `${lista.length > 10 ? `\n\nMostrando as 10 de maior valor parado.` : ''}\n\nSugestão: evite repor essas peças e avalie uma condição especial para girar o estoque.`
   return resp(texto, {
     fonte: 'Movimentações de estoque e custo das peças',
@@ -481,7 +506,7 @@ function rEstoqueBaixo(c: Consulta, d: Dados): RespostaAssistente {
   const zerados = lista.filter((p) => p.estoque === 0).length
   const texto = `${plural(lista.length, 'peça', 'peças')}${escopo} ${lista.length === 1 ? 'está' : 'estão'} no mínimo ou abaixo${zerados ? `, sendo **${zerados} zerada${zerados > 1 ? 's' : ''}**` : ''}. Sugestão de compra, cobrindo cerca de 2 meses de giro:\n\n`
     + `${tabela(['Peça', 'Estoque', 'Mínimo', 'Giro/mês', 'Comprar'], linhas, [2, 3, 4])}\n\n`
-    + `Investimento estimado a preço de custo: **${brl(total)}**. O giro considera as saídas dos últimos 90 dias.`
+    + `${pode('custo_margem') ? `Investimento estimado a preço de custo: **${brl(total)}**. ` : ''}O giro considera as saídas dos últimos 90 dias.`
   return resp(texto, {
     fonte: 'Cadastro de peças (mínimos) e movimentações dos últimos 90 dias',
     links: lista.slice(0, 3).map((p) => ({ rotulo: p.nome, rota: `/estoque/${p.id}` })),
@@ -491,12 +516,14 @@ function rEstoqueBaixo(c: Consulta, d: Dados): RespostaAssistente {
 
 function fichaPeca(p: Produto, d: Dados, s90: Record<string, number>): string {
   const sit = p.estoque === 0 ? 'zerado' : p.estoque < p.estoqueMinimo ? 'abaixo do mínimo' : p.estoque === p.estoqueMinimo ? 'no mínimo' : 'em dia'
+  const dinheiro = pode('preco_venda') || pode('custo_margem')
+    ? `- ${[pode('preco_venda') ? `Preço de venda: **${brl(p.preco)}**` : '', pode('custo_margem') ? `custo ${brl(p.custo)}` : ''].filter(Boolean).join(' · ')}\n` : ''
   return `**${lp(p)}** (SKU ${p.sku})\n`
     + `- Estoque: **${un(p.estoque)}**, mínimo ${numero(p.estoqueMinimo)} (${sit})\n`
-    + `- Preço de venda: **${brl(p.preco)}** · custo ${brl(p.custo)}\n`
-    + `- Localização: ${p.localizacao} · fornecedor ${p.fornecedor}\n`
+    + dinheiro
+    + `- Localização: ${p.localizacao}${pode('compras_giro') ? ` · fornecedor ${p.fornecedor}` : ''}\n`
     + `- Serve em: ${nomesMod(p.modelosCompativeis, d)}\n`
-    + `- Saídas nos últimos 90 dias: ${numero(s90[p.id] ?? 0)}`
+    + (pode('compras_giro') ? `- Saídas nos últimos 90 dias: ${numero(s90[p.id] ?? 0)}` : `- Peso: ${peso(p.pesoG)}`)
 }
 
 function rPeca(c: Consulta, d: Dados): RespostaAssistente {
@@ -514,8 +541,9 @@ function rPeca(c: Consulta, d: Dados): RespostaAssistente {
     }
     return resp(`${fichaPeca(p, d, s90)}${extra}`, { fonte, links, continuacoes: ['Em quais drones serve?', 'Quanto pesa essa peça?', 'O que preciso comprar?'] })
   }
-  const linhas = ps.map((p) => [lp(p), un(p.estoque), brl(p.preco), nomesMod(p.modelosCompativeis, d), p.localizacao])
-  const texto = `Encontrei **${plural(c.produtos.length, 'item', 'itens')}** no catálogo:\n\n${tabela(['Peça', 'Estoque', 'Preço', 'Serve em', 'Local'], linhas, [1, 2])}`
+  const verPreco = pode('preco_venda')
+  const linhas = ps.map((p) => [lp(p), un(p.estoque), ...(verPreco ? [brl(p.preco)] : []), nomesMod(p.modelosCompativeis, d), p.localizacao])
+  const texto = `Encontrei **${plural(c.produtos.length, 'item', 'itens')}** no catálogo:\n\n${tabela(['Peça', 'Estoque', ...(verPreco ? ['Preço'] : []), 'Serve em', 'Local'], linhas, verPreco ? [1, 2] : [1])}`
     + `${c.produtos.length > ps.length ? `\n\nMostrando os ${ps.length} primeiros.` : ''}\n\nDiga o modelo do drone, por exemplo "do T40", para eu filtrar.`
   return resp(texto, { fonte, links, continuacoes: ['Quais peças mais saem?', 'O que preciso comprar?'] })
 }
@@ -531,10 +559,10 @@ function rCompatPeca(c: Consulta, d: Dados): RespostaAssistente {
       const p = doOrigem[0]
       const serve = p.modelosCompativeis.includes(destino)
       if (serve) {
-        return resp(`**Sim.** ${lp(p)} serve no ${nomeMod(origem, d)} e também no **${nomeMod(destino, d)}**. Compatível com: ${nomesMod(p.modelosCompativeis, d)}.\n\nEstoque: ${un(p.estoque)} por ${brl(p.preco)}.`, { fonte, links: [{ rotulo: p.nome, rota: `/estoque/${p.id}` }], continuacoes: ['Quanto pesa?', 'Quais peças servem no T50?'] })
+        return resp(`**Sim.** ${lp(p)} serve no ${nomeMod(origem, d)} e também no **${nomeMod(destino, d)}**. Compatível com: ${nomesMod(p.modelosCompativeis, d)}.\n\nEstoque: ${un(p.estoque)}${pode('preco_venda') ? ` por ${brl(p.preco)}` : ''}.`, { fonte, links: [{ rotulo: p.nome, rota: `/estoque/${p.id}` }], continuacoes: ['Quanto pesa?', 'Quais peças servem no T50?'] })
       }
       const alt = todos.filter((x) => x.modelosCompativeis.includes(destino))
-      const sugest = alt.length ? `\n\nPara o ${nomeMod(destino, d)} use ${alt.slice(0, 2).map((x) => `${lp(x)} (${un(x.estoque)} em estoque, ${brl(x.preco)})`).join(' ou ')}.` : ''
+      const sugest = alt.length ? `\n\nPara o ${nomeMod(destino, d)} use ${alt.slice(0, 2).map((x) => `${lp(x)} (${un(x.estoque)} em estoque${pode('preco_venda') ? `, ${brl(x.preco)}` : ''})`).join(' ou ')}.` : ''
       return resp(`**Não.** ${lp(p)} serve apenas em: ${nomesMod(p.modelosCompativeis, d)}. Ela não é compatível com o ${nomeMod(destino, d)}.${sugest}`, { fonte, links: [{ rotulo: p.nome, rota: `/estoque/${p.id}` }, ...alt.slice(0, 1).map((x) => ({ rotulo: x.nome, rota: `/estoque/${x.id}` }))], continuacoes: [`Quais peças servem no ${nomeMod(destino, d)}?`, 'Qual o estoque dela?'] })
     }
   }
@@ -543,8 +571,9 @@ function rCompatPeca(c: Consulta, d: Dados): RespostaAssistente {
     const m = c.modelos[0]
     const ok = c.produtos.filter((p) => p.modelosCompativeis.includes(m) || !p.modelosCompativeis.length)
     if (ok.length) {
-      const linhas = ok.slice(0, 6).map((p) => [lp(p), un(p.estoque), brl(p.preco)])
-      return resp(`**Sim**, estas peças servem no **${nomeMod(m, d)}**:\n\n${tabela(['Peça', 'Estoque', 'Preço'], linhas, [1, 2])}`, { fonte, links: ok.slice(0, 3).map((p) => ({ rotulo: p.nome, rota: `/estoque/${p.id}` })), continuacoes: ['Quanto pesa?', `Quais peças mais saem do ${nomeMod(m, d)}?`] })
+      const vp = pode('preco_venda')
+      const linhas = ok.slice(0, 6).map((p) => [lp(p), un(p.estoque), ...(vp ? [brl(p.preco)] : [])])
+      return resp(`**Sim**, estas peças servem no **${nomeMod(m, d)}**:\n\n${tabela(['Peça', 'Estoque', ...(vp ? ['Preço'] : [])], linhas, vp ? [1, 2] : [1])}`, { fonte, links: ok.slice(0, 3).map((p) => ({ rotulo: p.nome, rota: `/estoque/${p.id}` })), continuacoes: ['Quanto pesa?', `Quais peças mais saem do ${nomeMod(m, d)}?`] })
     }
     const lista = c.produtos.slice(0, 4)
     return resp(`**Não** encontrei essa peça compatível com o ${nomeMod(m, d)}. O que existe no catálogo:\n\n${lista.map((p) => `- ${lp(p)}: serve em ${nomesMod(p.modelosCompativeis, d)}`).join('\n')}`, { fonte, links: lista.slice(0, 2).map((p) => ({ rotulo: p.nome, rota: `/estoque/${p.id}` })), continuacoes: [`Quais peças servem no ${nomeMod(m, d)}?`] })
@@ -569,7 +598,7 @@ function rCompatModelo(c: Consulta, d: Dados): RespostaAssistente {
   if (!lista.length) return resp(`Não encontrei peças específicas do **${nomeMod(m, d)}** no catálogo.`, { fonte: 'Catálogo de peças por modelo', continuacoes: SUGESTOES_GERAIS.slice(0, 2) })
   const grupos = new Map<string, Produto[]>()
   for (const p of lista) grupos.set(p.categoria, [...(grupos.get(p.categoria) ?? []), p])
-  const blocos = [...grupos.entries()].map(([cat, ps]) => `**${cat}**\n${ps.map((p) => `- ${lp(p)} · ${un(p.estoque)} · ${brl(p.preco)}`).join('\n')}`)
+  const blocos = [...grupos.entries()].map(([cat, ps]) => `**${cat}**\n${ps.map((p) => `- ${lp(p)} · ${un(p.estoque)}${pode('preco_venda') ? ` · ${brl(p.preco)}` : ''}`).join('\n')}`)
   const modelo = d.modelos.find((x) => x.id === m)
   const cab = modelo ? ` (${modelo.rotores} rotores, tanque de ${modelo.tanqueL} L)` : ''
   return resp(`O catálogo tem **${plural(lista.length, 'peça', 'peças')}** compatíveis com o **${nomeMod(m, d)}**${cab}:\n\n${blocos.join('\n\n')}`, {
@@ -617,11 +646,13 @@ const nomeCli = (id: string | undefined, d: Dados) => d.clientes.find((x) => x.i
 function rOSAbertas(c: Consulta, d: Dados): RespostaAssistente {
   const fonte = 'Ordens de serviço'
   let abertas = d.ordens.filter(emAberto)
-  if (c.usuario) abertas = abertas.filter((o) => o.tecnico === c.usuario!.nome)
+  const minhas = CTX.papel === 'Técnico' && !c.usuario && !c.cliente && !!CTX.usuario && !tem(c.q, /todas|todos|geral|oficina toda|cada tecnico|por tecnico/)
+  const alvo = c.usuario ?? (minhas ? CTX.usuario : undefined)
+  if (alvo) abertas = abertas.filter((o) => o.tecnico === alvo.nome)
   if (c.cliente) abertas = abertas.filter((o) => o.clienteId === c.cliente!.id)
   const soAtrasadas = tem(c.q, /atrasad/)
   const base = soAtrasadas ? abertas.filter(atrasada) : abertas
-  const escopo = c.usuario ? ` de ${c.usuario.nome}` : c.cliente ? ` de ${c.cliente.nome}` : ''
+  const escopo = minhas ? ' sob sua responsabilidade' : c.usuario ? ` de ${c.usuario.nome}` : c.cliente ? ` de ${c.cliente.nome}` : ''
   if (!base.length) {
     return resp(soAtrasadas ? `Nenhuma OS${escopo} está atrasada. Todas dentro do prazo.` : `Não há OS em aberto${escopo}.`, { fonte, continuacoes: ['Quais OS estão em aberto?', 'Qual serviço mais feito?'] })
   }
@@ -638,7 +669,7 @@ function rOSAbertas(c: Consulta, d: Dados): RespostaAssistente {
   const intro = soAtrasadas
     ? `**${plural(base.length, 'OS atrasada', 'OS atrasadas')}**${escopo}:`
     : `**${plural(abertas.length, 'OS em aberto', 'OS em aberto')}**${escopo}, ${nAtr ? `sendo **${nAtr}** atrasada${nAtr === 1 ? '' : 's'}` : 'nenhuma atrasada'}:`
-  const texto = `${intro}\n\n${tabela(['OS', 'Cliente', 'Drone', 'Etapa', 'Previsão', 'Técnico'], linhas)}\n\nPor técnico: ${resumoTec || '-'}.`
+  const texto = `${intro}\n\n${tabela(['OS', 'Cliente', 'Drone', 'Etapa', 'Previsão', 'Técnico'], linhas)}\n\n${minhas ? 'Mostrando as suas OS. Pergunte por "todas as OS" para ver a oficina inteira.' : `Por técnico: ${resumoTec || '-'}.`}`
   return resp(texto, {
     fonte, links: base.slice(0, 3).map((o) => ({ rotulo: `OS ${o.numero}`, rota: `/os/${o.id}` })),
     continuacoes: soAtrasadas ? ['Quais OS estão em aberto?', 'Qual modelo mais passa pela oficina?'] : ['Quais OS estão atrasadas?', 'Qual serviço mais feito?', 'Qual modelo mais passa pela oficina?'],
@@ -657,7 +688,7 @@ function rOSDetalhe(c: Consulta, d: Dados): RespostaAssistente {
     + `- Aberta em ${dataCurta(o.abertura)} · previsão ${dataCurta(o.previsao)} · técnico ${o.tecnico}\n`
     + `- Relato do cliente: ${o.relatoCliente}\n`
     + `${o.diagnostico ? `- Diagnóstico: ${o.diagnostico}\n` : ''}`
-    + `- Itens: ${numero(o.itens.length)} (total ${brl(total)})${o.orcamentoId ? ` · [orçamento vinculado](/orcamentos/${o.orcamentoId})` : ''}`
+    + `- Itens: ${numero(o.itens.length)}${pode('orcamentos') ? ` (total ${brl(total)})${o.orcamentoId ? ` · [orçamento vinculado](/orcamentos/${o.orcamentoId})` : ''}` : ''}`
   return resp(texto, { fonte: 'Ordens de serviço', links: [{ rotulo: `Abrir OS ${o.numero}`, rota: `/os/${o.id}` }, ...(cli ? [{ rotulo: cli.nome, rota: `/clientes/${cli.id}` }] : [])], continuacoes: ['Quais OS estão atrasadas?', cli ? `Histórico de ${cli.nome}` : 'Quais OS estão em aberto?'] })
 }
 
@@ -770,7 +801,8 @@ function rServicoMais(_c: Consulta, d: Dados): RespostaAssistente {
   const lista = [...mapa.values()].sort((a, b) => b.qtd - a.qtd || b.valor - a.valor).slice(0, 6)
   if (!lista.length) return resp('Ainda não há serviços lançados nas ordens de serviço.', { fonte, continuacoes: ['Quais OS estão em aberto?'] })
   const maior = [...mapa.values()].sort((a, b) => b.valor - a.valor)[0]
-  const texto = `O serviço mais feito na oficina é **${lista[0].nome}**, com ${plural(lista[0].qtd, 'execução', 'execuções')}.\n\n${tabela(['Serviço', 'Vezes', 'Receita'], lista.map((s) => [s.nome, numero(s.qtd), brl(s.valor)]), [1, 2])}\n\nEm receita, o destaque é **${maior.nome}** (${brl(maior.valor)}).`
+  const vr = pode('faturamento')
+  const texto = `O serviço mais feito na oficina é **${lista[0].nome}**, com ${plural(lista[0].qtd, 'execução', 'execuções')}.\n\n${tabela(['Serviço', 'Vezes', ...(vr ? ['Receita'] : [])], lista.map((s) => [s.nome, numero(s.qtd), ...(vr ? [brl(s.valor)] : [])]), vr ? [1, 2] : [1])}${vr ? `\n\nEm receita, o destaque é **${maior.nome}** (${brl(maior.valor)}).` : ''}`
   return resp(texto, { fonte, links: [{ rotulo: 'Ordens de serviço', rota: '/os' }], continuacoes: ['Qual modelo mais passa pela oficina?', 'Quais OS estão atrasadas?'] })
 }
 
@@ -838,8 +870,8 @@ function rCliente(c: Consulta, d: Dados): RespostaAssistente {
   const ult = orcs[0]
   const texto = `**${lc(cli)}**, ${cli.cidade}/${cli.uf}, cliente desde ${dataCurta(cli.desde)}.\n\n**Drones**\n${linhasE}\n\n`
     + `**Oficina:** ${plural(oss.length, 'ordem de serviço', 'ordens de serviço')} no histórico${abertas.length ? `, ${plural(abertas.length, 'em aberto', 'em aberto')}: ${abertas.map((o) => `${lo(o)} (${ROTULO_OS[o.status].toLowerCase()})`).join(', ')}` : ', nenhuma em aberto'}.\n`
-    + `**Orçamentos:** ${ult ? `o último é o [#${ult.numero}](/orcamentos/${ult.id}), ${ROTULO_ORC[ult.status].toLowerCase()}, ${brl(totalOrcamento(ult))}` : 'nenhum até agora'}.\n`
-    + `**Financeiro:** ${devido.length ? `${brl(devido.reduce((a, l) => a + l.valor, 0))} em aberto${vencido ? `, dos quais **${brl(vencido)}** vencidos` : ''}` : 'sem pendências'}.`
+    + (pode('orcamentos') ? `**Orçamentos:** ${ult ? `o último é o [#${ult.numero}](/orcamentos/${ult.id}), ${ROTULO_ORC[ult.status].toLowerCase()}, ${brl(totalOrcamento(ult))}` : 'nenhum até agora'}.\n` : '')
+    + (pode('contas_financeiro') ? `**Financeiro:** ${devido.length ? `${brl(devido.reduce((a, l) => a + l.valor, 0))} em aberto${vencido ? `, dos quais **${brl(vencido)}** vencidos` : ''}` : 'sem pendências'}.` : '')
     + `${cli.observacao ? `\n\nObservação: ${cli.observacao}` : ''}`
   return resp(texto, {
     fonte, links: [{ rotulo: cli.nome, rota: `/clientes/${cli.id}` }, ...abertas.slice(0, 2).map((o) => ({ rotulo: `OS ${o.numero}`, rota: `/os/${o.id}` }))],
@@ -852,7 +884,7 @@ function rCliente(c: Consulta, d: Dados): RespostaAssistente {
 function rTecnica(c: Consulta, d: Dados): RespostaAssistente {
   const fonte = 'Manuais de manutenção e procedimentos da oficina (base de conhecimento)'
   const srv = (id: string) => d.servicos.find((s) => s.id === id)
-  const linhaSrv = (id: string) => { const s = srv(id); return s ? `\n\nNa oficina: **${s.nome}**, ${brl(s.preco)} (cerca de ${numero(s.horas, s.horas % 1 ? 1 : 0)} h).` : '' }
+  const linhaSrv = (id: string) => { const s = srv(id); return s ? `\n\nNa oficina: **${s.nome}**${pode('preco_venda') ? `, ${brl(s.preco)}` : ''} (cerca de ${numero(s.horas, s.horas % 1 ? 1 : 0)} h).` : '' }
   const prod = (slug: string) => d.produtos.find((p) => p.id === `prd-${slug}`)
   const nota = '\n\nConfirme sempre no manual do modelo específico.'
   let texto = ''
@@ -896,25 +928,145 @@ function rTecnica(c: Consulta, d: Dados): RespostaAssistente {
   return resp(texto, { fonte, links, continuacoes: cont })
 }
 
+// ---------------------------------------------------------------- agenda e notas
+
+function rAgenda(c: Consulta, d: Dados): RespostaAssistente {
+  const fonte = 'Agenda dos técnicos'
+  const alvo = c.usuario ?? (CTX.papel === 'Técnico' ? CTX.usuario : undefined)
+  const h0 = inicioHoje().getTime()
+  let ini = h0; let fim = h0 + DIA; let rot = 'hoje'
+  if (tem(c.q, /amanha/)) { ini = h0 + DIA; fim = h0 + 2 * DIA; rot = 'amanhã' }
+  else if (tem(c.q, /semana|proximos dias/)) { fim = h0 + 7 * DIA; rot = 'nos próximos 7 dias' }
+  const lista = d.compromissos
+    .filter((x) => (!alvo || x.tecnicoId === alvo.id) && x.status !== 'cancelado' && ts(x.inicio) >= ini && ts(x.inicio) < fim)
+    .sort((a, b) => ts(a.inicio) - ts(b.inicio))
+  const quem = alvo ? (CTX.papel === 'Técnico' && alvo.id === CTX.usuario?.id ? 'na sua agenda' : `na agenda de ${alvo.nome}`) : 'na agenda dos técnicos'
+  const links = [{ rotulo: 'Abrir agenda', rota: '/agenda' }]
+  const cont = ['Quais OS estão em aberto?', 'Qual o checklist depois de uma queda?']
+  if (!lista.length) return resp(`Nenhum compromisso ${quem} ${rot}.`, { fonte, links, continuacoes: [rot === 'hoje' ? 'Minha agenda de amanhã' : 'Minha agenda de hoje', ...cont] })
+  const hora = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const dia = (iso: string) => (rot.startsWith('nos') ? `${dataCurta(iso)} ` : '')
+  const linhas = lista.map((x) => [`${dia(x.inicio)}${hora(x.inicio)}`, x.titulo, nomeCli(x.clienteId, d), x.local?.descricao ?? 'Oficina', ...(alvo ? [] : [d.usuarios.find((u) => u.id === x.tecnicoId)?.nome ?? '-'])])
+  const texto = `**${plural(lista.length, 'compromisso', 'compromissos')}** ${quem} ${rot}:\n\n${tabela(['Horário', 'Atividade', 'Cliente', 'Local', ...(alvo ? [] : ['Técnico'])], linhas)}`
+  return resp(texto, { fonte, links, continuacoes: [rot === 'amanhã' ? 'Minha agenda de hoje' : 'Minha agenda de amanhã', ...cont] })
+}
+
+function rNotas(_c: Consulta, d: Dados): RespostaAssistente {
+  const fonte = 'Notas fiscais'
+  const soEntrada = !pode('faturamento')
+  const lista = d.notas.filter((n) => !soEntrada || n.tipo === 'entrada').sort((a, b) => ts(b.data) - ts(a.data)).slice(0, 8)
+  if (!lista.length) return resp('Não há notas fiscais de entrada registradas.', { fonte, links: [{ rotulo: 'Abrir notas', rota: '/notas' }] })
+  const linhas = lista.map((n) => [`${n.numero}`, n.tipo === 'entrada' ? 'Entrada' : 'Saída', n.tipo === 'entrada' ? (n.emitente ?? '-') : nomeCli(n.clienteId, d), dataCurta(n.data), n.status, brl(n.valor)])
+  return resp(`Últimas notas fiscais${soEntrada ? ' de entrada' : ''}:\n\n${tabela(['Nº', 'Tipo', 'Origem / cliente', 'Data', 'Situação', 'Valor'], linhas, [5])}`, {
+    fonte, links: [{ rotulo: 'Abrir notas', rota: '/notas' }], continuacoes: ['O que preciso comprar?', 'Quais peças mais saem?'],
+  })
+}
+
+// ---------------------------------------------------------------- saudação, fallback e bloqueio por papel
+
+interface PerfilIA { subtitulo: string; ajuda: string[]; sugestoes: string[]; apresentacao: string }
+
+export const PERFIL_IA: Record<Papel, PerfilIA> = {
+  Gestor: {
+    subtitulo: 'Faça perguntas sobre estoque, peças, oficina, vendas e financeiro.',
+    apresentacao: 'o estoque, as OS, os orçamentos, o financeiro e o catálogo de peças',
+    ajuda: ['estoque, giro e o que comprar', 'OS, clientes e orçamentos', 'faturamento, contas e funil', 'dúvidas técnicas de manutenção'],
+    sugestoes: ['Quais peças mais saem?', 'O que preciso comprar?', 'Quais OS estão atrasadas?', 'Quanto faturamos este mês?', 'Quais orçamentos aguardam resposta?'],
+  },
+  Vendas: {
+    subtitulo: 'Assistente comercial: clientes, orçamentos, funil, preços e peças.',
+    apresentacao: 'clientes, orçamentos, funil, preços de venda, estoque disponível e compatibilidade de peças',
+    ajuda: ['histórico de clientes e drones', 'orçamentos e funil de vendas', 'preço, estoque e compatibilidade de uma peça', 'peso e frete de um pedido'],
+    sugestoes: ['Quais orçamentos aguardam resposta?', 'Como está o funil de vendas?', 'Quanto custa o drone T50?', 'Quanto pesa 2 pares de hélice do T40 e 1 bomba?', 'Em quais drones serve o motor do T40?'],
+  },
+  Técnico: {
+    subtitulo: 'Assistente da oficina: minhas OS, agenda, procedimentos técnicos e peças.',
+    apresentacao: 'suas OS, a sua agenda, os procedimentos de manutenção, o estoque e a compatibilidade de peças',
+    ajuda: ['minhas OS em aberto e atrasadas', 'minha agenda de hoje e de amanhã', 'checklist pós-queda, revisão de 100 h, limpeza e calibração', 'peças que servem no drone de uma OS e onde estão no estoque'],
+    sugestoes: ['Quais são minhas OS em aberto?', 'Qual minha agenda de hoje?', 'Qual o checklist depois de uma queda?', 'Quais peças servem no drone da OS 1039?', 'Onde está a hélice do T40 no estoque?'],
+  },
+  Estoque: {
+    subtitulo: 'Assistente do estoque: giro, compras, entradas e peças.',
+    apresentacao: 'estoque, giro, compras, custos, notas de entrada, peças das OS e compatibilidade',
+    ajuda: ['peças que mais saem e paradas', 'o que comprar (abaixo do mínimo)', 'notas fiscais de entrada', 'localização, peso e compatibilidade de uma peça'],
+    sugestoes: ['O que preciso comprar?', 'Quais peças mais saem?', 'Quais peças estão paradas há mais de 90 dias?', 'Quais notas de entrada chegaram?', 'Quais OS estão aguardando peças?'],
+  },
+}
+
+const listaAjuda = (p: Papel) => PERFIL_IA[p].ajuda.map((x) => `- ${x}`).join('\n')
+
+function bloqueio(): RespostaAssistente {
+  const p = CTX.papel
+  return {
+    texto: `Essa informação não está disponível no seu perfil (${p}). Posso ajudar com:\n${listaAjuda(p)}`,
+    links: [], fonte: `Perfil ${p}`, continuacoes: PERFIL_IA[p].sugestoes.slice(0, 3), bloqueada: true,
+  }
+}
+
 function rSaudacao(d: Dados): RespostaAssistente {
-  const baixas = d.produtos.filter((p) => p.tipo !== 'drone' && p.estoque <= p.estoqueMinimo).length
-  const atrasadas = d.ordens.filter(atrasada).length
-  const venc = d.lancamentos.filter((l) => l.tipo === 'receber' && !l.pagoEm && ts(l.vencimento) < inicioHoje().getTime()).length
-  const texto = `Olá! Sou o assistente do ${d.empresa.nome}. Eu consulto o estoque, as OS, os orçamentos, o financeiro e o catálogo de peças para responder.\n\n`
-    + `Para começar: **${plural(baixas, 'peça está', 'peças estão')}** no mínimo ou abaixo, ${atrasadas ? `**${plural(atrasadas, 'OS está atrasada', 'OS estão atrasadas')}**` : 'nenhuma OS atrasada'} e ${venc ? `**${plural(venc, 'conta a receber está vencida', 'contas a receber estão vencidas')}**` : 'nenhuma conta a receber vencida'}.\n\n`
-    + 'Pergunte do seu jeito. Alguns exemplos:\n- Quais peças mais saem e o que preciso comprar\n- Em quais drones serve uma peça, estoque, preço e peso para frete\n- OS em aberto, atrasadas ou por técnico; histórico de um cliente ou drone\n- Faturamento, contas a receber e a pagar, orçamentos e funil\n- Dúvidas de manutenção: revisão, calibração, bateria, limpeza e pós-queda'
-  return resp(texto, { fonte: 'Visão geral dos dados do sistema', continuacoes: ['Quais peças mais saem?', 'O que preciso comprar?', 'Quais OS estão atrasadas?'] })
+  const pf = PERFIL_IA[CTX.papel]
+  const resumo: string[] = []
+  if (pode('compras_giro')) { const n = d.produtos.filter((p) => p.tipo !== 'drone' && p.estoque <= p.estoqueMinimo).length; resumo.push(`**${plural(n, 'peça está', 'peças estão')}** no mínimo ou abaixo`) }
+  if (pode('os_oficina')) {
+    const meus = CTX.papel === 'Técnico' && CTX.usuario ? CTX.usuario.nome : ''
+    const n = d.ordens.filter((o) => atrasada(o) && (!meus || o.tecnico === meus)).length
+    resumo.push(n ? `**${plural(n, meus ? 'OS sua está atrasada' : 'OS está atrasada', meus ? 'OS suas estão atrasadas' : 'OS estão atrasadas')}**` : `nenhuma ${meus ? 'OS sua ' : 'OS '}atrasada`)
+  }
+  if (pode('contas_financeiro')) { const n = d.lancamentos.filter((l) => l.tipo === 'receber' && !l.pagoEm && ts(l.vencimento) < inicioHoje().getTime()).length; resumo.push(n ? `**${plural(n, 'conta a receber vencida', 'contas a receber vencidas')}**` : 'nenhuma conta a receber vencida') }
+  if (pode('orcamentos')) { const n = d.orcamentos.filter((o) => o.status === 'enviado').length; resumo.push(`**${plural(n, 'orçamento aguarda', 'orçamentos aguardam')}** resposta`) }
+  const texto = `Olá! Sou o assistente do ${d.empresa.nome} para o seu perfil (${CTX.papel}). Eu consulto ${pf.apresentacao}.\n\n`
+    + `${resumo.length ? `Para começar: ${resumo.join(', ')}.\n\n` : ''}Pergunte do seu jeito. Posso ajudar com:\n${listaAjuda(CTX.papel)}`
+  return resp(texto, { fonte: 'Visão geral dos dados do seu perfil', continuacoes: pf.sugestoes.slice(0, 3) })
 }
 
 function rFallback(): RespostaAssistente {
-  return resp('Não entendi bem essa pergunta, mas posso ajudar com:\n- **Estoque:** peças que mais saem, paradas, o que comprar, preço, estoque e peso de uma peça\n- **Catálogo:** em quais drones serve uma peça e quais peças servem em um modelo\n- **Oficina:** OS em aberto, atrasadas, por técnico, serviço e modelo mais atendidos\n- **Vendas e financeiro:** faturamento, contas, orçamentos e funil\n- **Clientes:** histórico de um cliente ou de um drone, pelo nome, apelido ou serial\n- **Técnico:** revisão, calibração, limpeza, bateria e pós-queda\n\nTente reformular citando o nome da peça, do cliente ou do modelo.', {
-    fonte: 'Capacidades do assistente', continuacoes: ['Quais peças mais saem?', 'Quais OS estão atrasadas?', 'Quanto faturamos este mês?'],
+  const pf = PERFIL_IA[CTX.papel]
+  return resp(`Não entendi bem essa pergunta, mas posso ajudar com:\n${listaAjuda(CTX.papel)}\n\nTente reformular citando o nome da peça, do cliente, da OS ou do modelo.`, {
+    fonte: 'Capacidades do assistente', continuacoes: pf.sugestoes.slice(0, 3),
   })
+}
+
+// ---------------------------------------------------------------- permissão por assunto
+
+const ASSUNTO_BASE: Record<Intencao, Assunto | null> = {
+  saudacao: null, fallback: null, tecnica: 'tecnico_manutencao', peso: 'peso_frete', compat_peca: 'compatibilidade', compat_modelo: 'compatibilidade',
+  os_detalhe: 'os_oficina', os_abertas: 'os_oficina', servico_mais: 'os_oficina', modelo_mais: 'os_oficina',
+  orcamento_detalhe: 'orcamentos', orcamentos: 'orcamentos', mais_vendidas: 'compras_giro', paradas: 'compras_giro', estoque_baixo: 'compras_giro',
+  faturamento: 'faturamento', contas: 'contas_financeiro', funil: 'funil', cliente: 'clientes_historico', peca: 'estoque_quantidade',
+  agenda: 'agenda_tecnico', notas: 'entradas_nf',
+}
+const CUE_CUSTO = /\bcustos?\b|margem|lucro|markup|preco de (compra|custo)|quanto (pagamos|paguei|pagou)/
+const CUE_PRECO = /\bprecos?\b|\bcustam?\b|\bvalor(es)?\b|quanto (e|sai|fica|cobra|cobramos)|tabela de preco/
+
+/** Primeiro assunto exigido pela pergunta que o papel atual não pode ver (ou undefined se tudo liberado). */
+function assuntoBloqueado(c: Consulta): Assunto | undefined {
+  if (c.intencao === 'saudacao') return undefined
+  if (tem(c.q, CUE_CUSTO) && !pode('custo_margem')) return 'custo_margem'
+  const base = c.intencao === 'modelo_mais' && tem(c.q, /vend/) ? 'funil' : ASSUNTO_BASE[c.intencao]
+  if (tem(c.q, CUE_PRECO) && (c.intencao === 'peca' || c.intencao === 'compat_peca' || c.intencao === 'compat_modelo' || (c.intencao === 'fallback' && c.produtos.length)) && !pode('preco_venda')) return 'preco_venda'
+  if (!base || pode(base)) return undefined
+  if (base === 'os_oficina' && pode('os_status_cliente') && (c.cliente || c.intencao === 'os_detalhe')) return undefined
+  if (base === 'clientes_historico' && pode('historico_tecnico')) return undefined
+  return base
+}
+
+function limparResposta(r: RespostaAssistente, d: Dados): RespostaAssistente {
+  const p = CTX.papel
+  const texto = r.texto.replace(/\[([^\]]+)\]\((\/[^)\s]*)\)/g, (m, t: string, rota: string) => (podeAcessar(p, rota) ? m : t))
+  const links = r.links.filter((l) => podeAcessar(p, l.rota))
+  const cont = r.continuacoes.filter((t) => !assuntoBloqueado(detectar(t, d)))
+  for (const s of PERFIL_IA[p].sugestoes) if (cont.length < 3 && !cont.includes(s)) cont.push(s)
+  return { ...r, texto, links, continuacoes: cont.slice(0, 3) }
 }
 
 // ---------------------------------------------------------------- entrada pública
 
 function montarSimulado(c: Consulta, d: Dados): RespostaAssistente {
+  if (assuntoBloqueado(c)) return bloqueio()
+  return limparResposta(montarBruto(c, d), d)
+}
+
+function montarBruto(c: Consulta, d: Dados): RespostaAssistente {
   switch (c.intencao) {
     case 'saudacao': return rSaudacao(d)
     case 'tecnica': return rTecnica(c, d)
@@ -935,19 +1087,23 @@ function montarSimulado(c: Consulta, d: Dados): RespostaAssistente {
     case 'funil': return rFunil(c, d)
     case 'cliente': return rCliente(c, d)
     case 'peca': return rPeca(c, d)
+    case 'agenda': return rAgenda(c, d)
+    case 'notas': return rNotas(c, d)
     default: return rFallback()
   }
 }
 
 /** Intenção detectada na pergunta (para outros módulos, como Conversas). */
 export function detectarIntencao(texto: string, dados: Dados): string {
-  return detectar(texto, dados).intencao
+  return comCtx(undefined, () => detectar(texto, dados).intencao)
 }
 
 /** Peças e modelos de drone citados em um texto livre (para outros módulos). */
 export function citados(texto: string, dados: Dados): { produtos: Produto[]; modelos: string[] } {
-  const c = detectar(texto, dados)
-  return { produtos: c.produtos, modelos: c.modelos }
+  return comCtx(undefined, () => {
+    const c = detectar(texto, dados)
+    return { produtos: c.produtos, modelos: c.modelos }
+  })
 }
 
 /** Tira a formatação (negrito, links, tabelas) e deixa texto simples, para WhatsApp. */
@@ -963,36 +1119,48 @@ export function textoSimples(md: string): string {
     .trim()
 }
 
-/** Resposta calculada localmente (síncrona). Usada pelo caminho simulado e como base do Gemini. */
-export function responderSimulado(pergunta: string, historico: MensagemHistorico[], dados: Dados): RespostaAssistente {
-  return montarSimulado(resolver(pergunta, historico, dados), dados)
+/** Resposta calculada localmente (síncrona). Usada pelo caminho simulado e como base do Gemini. Sem `ctx`, perfil Gestor. */
+export function responderSimulado(pergunta: string, historico: MensagemHistorico[], dados: Dados, ctx?: ContextoIA): RespostaAssistente {
+  return comCtx(ctx, () => montarSimulado(resolver(pergunta, historico, dados), dados))
 }
 
+/** Panorama só com o que o papel pode ver. */
 function panorama(d: Dados): string {
   const hoje = inicioHoje().getTime()
-  const baixas = d.produtos.filter((p) => p.tipo !== 'drone' && p.estoque <= p.estoqueMinimo)
-  const abertas = d.ordens.filter(emAberto)
-  const aReceberVenc = d.lancamentos.filter((l) => l.tipo === 'receber' && !l.pagoEm && ts(l.vencimento) < hoje)
-  return [
-    `Empresa: ${d.empresa.nome} (revenda de drones agrícolas DJI Agras, peças e oficina).`,
-    `Peças cadastradas: ${d.produtos.length}; no mínimo ou abaixo: ${baixas.length}.`,
-    `OS em aberto: ${abertas.length}; atrasadas: ${abertas.filter(atrasada).length}.`,
-    `Orçamentos enviados aguardando resposta: ${d.orcamentos.filter((o) => o.status === 'enviado').length}.`,
-    `Contas a receber vencidas: ${aReceberVenc.length}, total ${brl(aReceberVenc.reduce((a, l) => a + l.valor, 0))}.`,
-    `Leads ativos: ${d.leads.filter((l) => l.etapa !== 'fechado' && l.etapa !== 'perdido').length}.`,
-  ].join('\n')
+  const l = [`Empresa: ${d.empresa.nome} (revenda de drones agrícolas DJI Agras, peças e oficina).`]
+  if (pode('estoque_quantidade')) {
+    const baixas = d.produtos.filter((p) => p.tipo !== 'drone' && p.estoque <= p.estoqueMinimo)
+    l.push(`Peças cadastradas: ${d.produtos.length}${pode('compras_giro') ? `; no mínimo ou abaixo: ${baixas.length}` : ''}.`)
+  }
+  if (pode('os_oficina')) {
+    const abertas = d.ordens.filter(emAberto)
+    l.push(`OS em aberto: ${abertas.length}; atrasadas: ${abertas.filter(atrasada).length}.`)
+  }
+  if (pode('orcamentos')) l.push(`Orçamentos enviados aguardando resposta: ${d.orcamentos.filter((o) => o.status === 'enviado').length}.`)
+  if (pode('contas_financeiro')) {
+    const v = d.lancamentos.filter((x) => x.tipo === 'receber' && !x.pagoEm && ts(x.vencimento) < hoje)
+    l.push(`Contas a receber vencidas: ${v.length}, total ${brl(v.reduce((a, x) => a + x.valor, 0))}.`)
+  }
+  if (pode('funil')) l.push(`Leads ativos: ${d.leads.filter((x) => x.etapa !== 'fechado' && x.etapa !== 'perdido').length}.`)
+  return l.join('\n')
 }
 
 async function viaGemini(c: Consulta, base: RespostaAssistente, historico: MensagemHistorico[], d: Dados): Promise<RespostaAssistente> {
   const s90 = saidasPorProduto(d.movimentacoes, 90)
   const relevantes = c.produtos.slice(0, 8).map((p) => ({
-    nome: p.nome, sku: p.sku, estoque: p.estoque, minimo: p.estoqueMinimo, preco: p.preco, pesoG: p.pesoG,
-    modelos: nomesMod(p.modelosCompativeis, d), local: p.localizacao, saidas90d: s90[p.id] ?? 0,
+    nome: p.nome, sku: p.sku, estoque: p.estoque, minimo: p.estoqueMinimo,
+    ...(pode('preco_venda') ? { preco: p.preco } : {}), ...(pode('custo_margem') ? { custo: p.custo } : {}),
+    ...(pode('peso_frete') ? { pesoG: p.pesoG } : {}), ...(pode('compatibilidade') ? { modelos: nomesMod(p.modelosCompativeis, d) } : {}),
+    local: p.localizacao, ...(pode('compras_giro') ? { saidas90d: s90[p.id] ?? 0 } : {}),
   }))
-  const sistema = 'Você é o assistente de gestão do Grupo AERO (drones agrícolas DJI Agras, peças e oficina). Responda em português do Brasil, de forma direta e objetiva, '
-    + 'para o dono da empresa. Use SOMENTE os dados fornecidos abaixo; não invente números, peças nem clientes. Se faltar dado, diga isso. '
+  const papel = CTX.papel
+  const permitidos = [...ASSUNTOS_IA[papel]].join(', ')
+  const sistema = `Você é o assistente do setor ${papel} do Grupo AERO (drones agrícolas DJI Agras, peças e oficina). Responda em português do Brasil, de forma direta e objetiva, `
+    + `para um usuário com o perfil ${papel}. Assuntos permitidos neste perfil: ${permitidos}. Fale SOMENTE desses assuntos; para qualquer outro (por exemplo faturamento, contas, custos, margens, `
+    + 'preços ou orçamentos quando não estiverem permitidos), responda apenas que a informação não está disponível no perfil e sugira o que você pode fazer. '
+    + 'Use SOMENTE os dados fornecidos abaixo; não invente números, peças nem clientes. Se faltar dado, diga isso. '
     + 'Formato permitido: **negrito**, listas com "- ", tabelas simples com "|" e links no formato [texto](/rota) apenas se já estiverem nos dados. Sem títulos com "#".'
-  const hist = historico.slice(-6).map((m) => `${m.papel === 'usuario' ? 'Dono' : 'Assistente'}: ${m.texto.slice(0, 500)}`).join('\n')
+  const hist = historico.slice(-6).map((m) => `${m.papel === 'usuario' ? 'Usuário' : 'Assistente'}: ${m.texto.slice(0, 500)}`).join('\n')
   const prompt = `Panorama:\n${panorama(d)}\n\nPeças relevantes (JSON):\n${JSON.stringify(relevantes)}\n\n`
     + `Resultado calculado pelo sistema para esta pergunta (confiável):\n${base.texto}\n\nConversa recente:\n${hist || '(início)'}\n\nPergunta: ${c.orig}\n\n`
     + 'Responda à pergunta usando o resultado calculado como fonte principal.'
@@ -1001,12 +1169,13 @@ async function viaGemini(c: Consulta, base: RespostaAssistente, historico: Mensa
   return { ...base, texto }
 }
 
-/** Responde à pergunta do dono usando os dados reais do sistema. */
-export async function responder(pergunta: string, historico: MensagemHistorico[], dados: Dados): Promise<RespostaAssistente> {
-  const c = resolver(pergunta, historico, dados)
-  const base = montarSimulado(c, dados)
+/** Responde à pergunta usando os dados do sistema que o perfil (`ctx`) pode ver. Sem `ctx`, perfil Gestor. */
+export async function responder(pergunta: string, historico: MensagemHistorico[], dados: Dados, ctx?: ContextoIA): Promise<RespostaAssistente> {
+  const cx: ContextoIA = ctx ?? { papel: 'Gestor' }
+  const { c, base } = comCtx(cx, () => { const q = resolver(pergunta, historico, dados); return { c: q, base: montarSimulado(q, dados) } })
+  if (base.bloqueada) { await esperar(400); return base }
   if (iaReal()) {
-    try { return await viaGemini(c, base, historico, dados) } catch { /* cai no simulado */ }
+    try { return await comCtx(cx, () => viaGemini(c, base, historico, dados)) } catch { /* cai no simulado */ }
   }
   await esperar(900)
   return base

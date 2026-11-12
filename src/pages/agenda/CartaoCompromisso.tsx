@@ -5,6 +5,7 @@ import { useStore } from '@/store'
 import { Button, Confirmar, Selo, cx, toast } from '@/components/ui'
 import type { Compromisso } from '@/types'
 import { BotoesLocal, DadosLocal } from '@/pages/os/LocalUI'
+import { BarraProgresso, ChecklistGrupos } from './ChecklistUI'
 import { COR_STATUS, ROTULO_STATUS, ROTULO_TIPO, faixaHora } from './agendaUtil'
 
 /** Cartão completo de um compromisso: horário, cliente, OS, local com Waze/Maps, checklist e ações. */
@@ -21,7 +22,6 @@ export function CartaoCompromisso({ c, destaque, rotuloDestaque, mostrarTecnico,
   const cliente = clientes.find((x) => x.id === c.clienteId)
   const os = ordens.find((x) => x.id === c.osId)
   const tecnico = usuarios.find((u) => u.id === c.tecnicoId)
-  const feitos = (c.checklist ?? []).filter((i) => i.feito).length
 
   const marcar = (idx: number) =>
     salvar('compromissos', { ...c, checklist: (c.checklist ?? []).map((i, k) => (k === idx ? { ...i, feito: !i.feito } : i)) })
@@ -61,17 +61,9 @@ export function CartaoCompromisso({ c, destaque, rotuloDestaque, mostrarTecnico,
 
       {c.checklist && c.checklist.length > 0 && (
         <div className="mt-3">
-          <p className="mb-1 text-xs text-mata-suave">Checklist · <span className="num">{feitos}/{c.checklist.length}</span></p>
-          <ul>
-            {c.checklist.map((i, idx) => (
-              <li key={idx}>
-                <label className="flex min-h-10 cursor-pointer items-center gap-3 text-sm">
-                  <input type="checkbox" className="h-5 w-5 shrink-0 accent-lavoura" checked={i.feito} onChange={() => marcar(idx)} />
-                  <span className={cx(i.feito && 'text-mata-suave line-through')}>{i.texto}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-1 text-xs text-mata-suave">Checklist</p>
+          <BarraProgresso lista={c.checklist} />
+          <div className="mt-1"><ChecklistGrupos lista={c.checklist} aoMarcar={marcar} /></div>
         </div>
       )}
       {c.observacoes && <p className="mt-2 text-sm text-mata-suave">{c.observacoes}</p>}

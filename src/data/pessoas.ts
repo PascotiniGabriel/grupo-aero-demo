@@ -1,5 +1,6 @@
 import type { Cliente, Empresa, Equipamento, Servico, Usuario } from '@/types'
 import { diasAtras, diasAFrente } from './util'
+import { CHECKLIST_ATENDIMENTO, CHECKLIST_SERVICO } from './checklists'
 
 export const EMPRESA: Empresa = {
   nome: 'Grupo AERO',
@@ -9,6 +10,7 @@ export const EMPRESA: Empresa = {
   fone: '(77) 90000-0001',
   email: 'contato@grupoaero.exemplo.com.br',
   unidades: ['Barra da Estiva - BA', 'Santa Maria - RS', 'Cruz Alta - RS'],
+  checklistAtendimento: { campo: [...CHECKLIST_ATENDIMENTO.campo], oficina: [...CHECKLIST_ATENDIMENTO.oficina] },
 }
 
 export const USUARIOS: Usuario[] = [
@@ -19,7 +21,7 @@ export const USUARIOS: Usuario[] = [
   { id: 'usr-5', nome: 'Paula Nogueira', papel: 'Estoque' },
 ]
 
-export const SERVICOS: Servico[] = [
+const SERVICOS_BASE: Servico[] = [
   { id: 'srv-revisao', nome: 'Revisão geral (100 h de voo)', preco: 1850, horas: 6 },
   { id: 'srv-motor', nome: 'Troca de motor', preco: 480, horas: 2.5 },
   { id: 'srv-calibracao', nome: 'Calibração de bússola e IMU', preco: 380, horas: 1.5 },
@@ -31,6 +33,8 @@ export const SERVICOS: Servico[] = [
   { id: 'srv-caar', nome: 'Curso CAAR (aplicação aérea com drones)', preco: 4200, horas: 24 },
   { id: 'srv-treino', nome: 'Treinamento operacional', preco: 1900, horas: 8 },
 ]
+
+export const SERVICOS: Servico[] = SERVICOS_BASE.map((s) => ({ ...s, checklist: [...(CHECKLIST_SERVICO[s.id] ?? [])] }))
 
 type C = [string, string, 'PF' | 'PJ', string, string, string, string, string, string, number]
 // id, nome, tipo, documento, cidade, uf, endereco, cep, email-slug, dias desde
