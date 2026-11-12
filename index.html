@@ -6,15 +6,26 @@
     <link rel="apple-touch-icon" href="./icone-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#10231C" />
-    <title>Grupo AERO — Gestão</title>
+    <title>Aerobrasil — Gestão</title>
+    <style>html[data-tema=escuro]{--lightningcss-light: ;--lightningcss-dark:initial;color-scheme:dark;background:#0e1714}</style>
+    <script>
+      (function () {
+        try {
+          var p = localStorage.getItem('aero-tema');
+          var e = p === 'escuro' || (p !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (e) {
+            document.documentElement.setAttribute('data-tema', 'escuro');
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0E1714');
+          }
+        } catch (_) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="./assets/index-Db3mI9Nh.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/format-Bx9zXbNl.js">
-    <link rel="modulepreload" crossorigin href="./assets/calendar-days-cf2Lv4Jr.js">
-    <link rel="modulepreload" crossorigin href="./assets/book-open-DzrD489t.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-DtfTMqJH.css">
+    <script type="module" crossorigin src="./assets/index-DwCI7RJX.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/format-CoARdFTa.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-BY2L2sQa.css">
   <link rel="manifest" href="./manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
   <body>
     <div id="root"></div>
