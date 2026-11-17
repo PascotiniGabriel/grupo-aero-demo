@@ -31,6 +31,7 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
+        <Route path="suporte" element={<Suspense fallback={null}><SuporteCliente /></Suspense>} />
         <Route path="suporte/:equipamentoId" element={<Suspense fallback={null}><SuporteCliente /></Suspense>} />
         <Route element={<AppShell />}>
           <Route index element={<Inicio />} />

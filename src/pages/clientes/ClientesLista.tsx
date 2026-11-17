@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users } from 'lucide-react'
 import type { Cliente } from '@/types'
-import { Avatar, Button, CabecalhoPagina, CampoBusca, EstadoVazio, Gaveta, Painel, Select, Tabela, toast, type Coluna } from '@/components/ui'
+import { Avatar, Button, CabecalhoPagina, CampoBusca, EstadoVazio, Gaveta, Painel, Select, Selo, Tabela, toast, type Coluna } from '@/components/ui'
 import { useStore, novoId } from '@/store'
 import { nomeModelo } from '@/store/selectors'
+import { situacaoSuporte } from '@/lib/suporte'
 import { brl, normalizar, relativo } from '@/lib/format'
 import { totalComprado, ultimoAtendimento } from './calc'
 import { FormCliente, clienteVazio } from './FormCliente'
@@ -41,7 +42,7 @@ export default function ClientesLista() {
   const colunas: Coluna<Linha>[] = [
     {
       id: 'nome', titulo: 'Cliente', principal: true, valor: (l) => l.c.nome,
-      render: (l) => <span className="inline-flex items-center gap-2.5"><Avatar nome={l.c.nome} tamanho={30} /><span className="font-medium">{l.c.nome}</span></span>,
+      render: (l) => <span className="inline-flex items-center gap-2.5"><Avatar nome={l.c.nome} tamanho={30} /><span className="font-medium">{l.c.nome}</span>{situacaoSuporte(l.c) === 'ativo' && <Selo cor="verde">Suporte ativo</Selo>}</span>,
     },
     { id: 'cidade', titulo: 'Cidade', valor: (l) => `${l.c.cidade}/${l.c.uf}`, render: (l) => `${l.c.cidade}/${l.c.uf}` },
     {

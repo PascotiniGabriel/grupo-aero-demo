@@ -11,6 +11,7 @@ import { rotuloStatus, statusLancamento } from '@/components/ui'
 import { deInput, emAberto, paraInput, totalComprado, vencidoCliente } from './calc'
 import { FormCliente } from './FormCliente'
 import { LocaisCliente } from './LocaisCliente'
+import { PainelSuporte } from './PainelSuporte'
 
 export default function ClienteDetalhe() {
   const { id } = useParams()
@@ -117,6 +118,8 @@ function Detalhe({ cliente }: { cliente: Cliente }) {
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
         <div className="flex min-w-0 flex-col gap-5">
+          <PainelSuporte cliente={cliente} />
+
           <Painel
             titulo={`Equipamentos${drones.length ? ` (${drones.length})` : ''}`}
             acoes={<Button tamanho="sm" variante="secundario" icone={<Plus size={16} />} onClick={abrirNovoDrone}>Adicionar drone</Button>}

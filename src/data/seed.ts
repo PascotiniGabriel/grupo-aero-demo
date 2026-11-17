@@ -4,6 +4,7 @@ import { criarProdutos, MODELOS } from './produtos'
 import { criarComercial } from './comercial'
 import { criarCotacoes, criarFornecedores } from './compras'
 import { criarChamados } from './chamados'
+import { PLANOS_SUPORTE, suporteDoCliente, chamadoUsoAlto } from './suporte'
 import { criarCompromissos } from './agenda'
 import { CHECKLIST_ATENDIMENTO } from './checklists'
 import { LOCAIS_CLIENTES, OS_CAMPO } from './locais'
@@ -20,13 +21,14 @@ export function criarDadosDemo(): Dados {
     empresa: {
       ...EMPRESA, unidades: [...EMPRESA.unidades],
       checklistAtendimento: { campo: [...CHECKLIST_ATENDIMENTO.campo], oficina: [...CHECKLIST_ATENDIMENTO.oficina] },
+      planosSuporte: PLANOS_SUPORTE.map((p) => ({ ...p })),
     },
     usuarios: USUARIOS.map((u) => ({ ...u })),
     modelos: MODELOS.map((m) => ({ ...m })),
     produtos,
     movimentacoes: criarMovimentacoes(produtos),
     servicos: SERVICOS.map((s) => ({ ...s, checklist: [...(s.checklist ?? [])] })),
-    clientes: clientes.map((c) => (LOCAIS_CLIENTES[c.id] ? { ...c, locais: LOCAIS_CLIENTES[c.id].map((l) => ({ ...l })) } : c)),
+    clientes: clientes.map((c) => ({ ...c, suporte: suporteDoCliente(c.id), ...(LOCAIS_CLIENTES[c.id] ? { locais: LOCAIS_CLIENTES[c.id].map((l) => ({ ...l })) } : {}) })),
     equipamentos: criarEquipamentos(),
     orcamentos,
     ordens: ordens.map((o) => {
@@ -41,6 +43,6 @@ export function criarDadosDemo(): Dados {
     compromissos: criarCompromissos(),
     fornecedores: criarFornecedores(),
     cotacoes: criarCotacoes(),
-    chamados: criarChamados(),
+    chamados: [...criarChamados(), chamadoUsoAlto()],
   }
 }

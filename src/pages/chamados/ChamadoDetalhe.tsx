@@ -6,7 +6,7 @@ import { useStore, novoId } from '@/store'
 import { dataHora } from '@/lib/format'
 import type { Chamado, MensagemChamado } from '@/types'
 import { rotuloStatus } from '@/components/ui/SeloStatus'
-import { SeloChamado } from './comum'
+import { SeloChamado, SeloPlano } from './comum'
 
 export default function ChamadoDetalhe() {
   const { id } = useParams()
@@ -50,6 +50,7 @@ export default function ChamadoDetalhe() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="text-xl">#{chamado.numero} · {chamado.assunto}</h1>
         <SeloChamado status={chamado.status} />
+        <SeloPlano clienteId={chamado.clienteId} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">

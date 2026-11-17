@@ -60,6 +60,25 @@ export interface Cliente {
   cidade: string; uf: string; endereco: string; cep: string; fone: string; email: string
   desde: string; observacao?: string
   locais?: Local[]
+  /** Plano de suporte (acesso do cliente ao agente de IA). Ausente = sem plano. */
+  suporte?: SuporteCliente
+}
+
+export interface PlanoSuporte {
+  id: string; nome: string; precoMensal: number
+  perguntasIAMes: number; chamadosEquipeMes: number
+  /** Ex.: "Horário comercial", "Prioridade 24h". */
+  atendimento: string
+  /** Ex.: "Grátis por 12 meses na compra do drone". */
+  incluso?: string
+}
+
+export interface SuporteCliente {
+  planoId: string; ativoAte: string
+  /** 4 números. */
+  pin: string
+  acessoEnviadoEm?: string
+  ativo: boolean
 }
 
 export interface Equipamento {
@@ -165,6 +184,7 @@ export interface Empresa {
   nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string; unidades: string[]
   /** Modelos de checklist por tipo de atendimento (ausente = padrão do seed). */
   checklistAtendimento?: { campo: string[]; oficina: string[] }
+  planosSuporte?: PlanoSuporte[]
 }
 
 export type TipoCompromisso = 'atendimento_campo' | 'manutencao_oficina' | 'entrega' | 'treinamento' | 'revisao_programada' | 'outro'
@@ -213,6 +233,8 @@ export interface Cotacao {
 export interface MensagemChamado {
   id: string; de: 'cliente' | 'ia' | 'equipe'; texto: string; hora: string
   autor?: string; passos?: string[]; fonte?: string; fotoUrl?: string
+  /** 'outro' = mensagem do cliente que não conta como pergunta à IA (atalho, foto, conversa com a equipe). */
+  tipo?: 'outro'
 }
 
 export interface Chamado {

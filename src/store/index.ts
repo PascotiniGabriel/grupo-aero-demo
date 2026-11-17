@@ -82,6 +82,18 @@ function mesclarComSeed(salvo: Partial<Estado>, atual: Estado): Estado {
   const orc = r.orcamentos ?? []
   const novos = atual.orcamentos.filter((o) => ['orc-2110', 'orc-2111'].includes(o.id) && !orc.some((x) => x.id === o.id))
   if (novos.length && orc.length) r.orcamentos = [...orc, ...novos]
+  // Plano de suporte: empresa ganha os planos; clientes sem a chave `suporte` recebem a do seed; chamado de uso alto entra uma vez.
+  if (!r.empresa?.planosSuporte) r.empresa = { ...r.empresa, planosSuporte: atual.empresa.planosSuporte }
+  if (Array.isArray(r.clientes)) {
+    r.clientes = r.clientes.map((c) => {
+      const base = atual.clientes.find((x) => x.id === c.id)
+      return !('suporte' in c) && base?.suporte ? { ...c, suporte: base.suporte } : c
+    })
+  }
+  if (Array.isArray(r.chamados) && !r.chamados.some((c) => c.id === 'cha-9')) {
+    const novo = atual.chamados.find((c) => c.id === 'cha-9')
+    if (novo && r.chamados.length) r.chamados = [...r.chamados, novo]
+  }
   return r
 }
 
