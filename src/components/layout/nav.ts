@@ -1,5 +1,5 @@
 import {
-  BookOpen, CalendarDays, ClipboardCheck, FileText, House, MessageCircle, Package, Receipt, SquareKanban, Users, Wallet, Wrench, type LucideIcon,
+  BookOpen, CalendarDays, ClipboardCheck, FileText, House, LifeBuoy, MessageCircle, Package, Receipt, ShoppingCart, SquareKanban, Users, Wallet, Wrench, type LucideIcon,
 } from 'lucide-react'
 
 import { useStore } from '@/store'
@@ -11,7 +11,7 @@ export interface ItemNav {
   icone: LucideIcon
   /** Só fica ativo na rota exata (usado no Início). */
   exato?: boolean
-  contador?: 'conversas'
+  contador?: 'conversas' | 'chamados'
   /** Rótulo alternativo para o Técnico. */
   rotuloTecnico?: string
 }
@@ -28,6 +28,7 @@ export const GRUPOS_NAV: GrupoNav[] = [
       { para: '/conversas', rotulo: 'Conversas', icone: MessageCircle, contador: 'conversas' },
     ],
   },
+  { titulo: 'Suporte', itens: [{ para: '/chamados', rotulo: 'Chamados', icone: LifeBuoy, contador: 'chamados' }] },
   {
     titulo: 'Oficina',
     itens: [
@@ -40,6 +41,7 @@ export const GRUPOS_NAV: GrupoNav[] = [
     titulo: 'Estoque',
     itens: [
       { para: '/estoque', rotulo: 'Peças e produtos', icone: Package },
+      { para: '/compras', rotulo: 'Compras', icone: ShoppingCart },
       { para: '/catalogo', rotulo: 'Catálogo', icone: BookOpen },
     ],
   },

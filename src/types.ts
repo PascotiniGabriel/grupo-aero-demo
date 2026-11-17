@@ -86,16 +86,26 @@ export interface Orcamento {
   desconto: number; frete: number
   formaPagamento: string; prazoEntrega: string; observacoes: string; vendedor: string
   osId?: string; criadoPorIA?: boolean
+  /** Ausente = 'pecas'. */
+  tipo?: 'pecas' | 'drone' | 'manutencao' | 'pulverizacao'
+  /** Relatório técnico que acompanha orçamento de manutenção. */
+  laudo?: { diagnostico: string; causa: string; recomendacao: string; fotoIds?: string[] }
+  pulverizacao?: {
+    areaHa: number; cultura: string; produto: string; vazaoLHa: number; valorHa: number; data: string
+    local?: Local; observacoes?: string
+  }
 }
 
 export type StatusOS =
   | 'recebido' | 'diagnostico' | 'aguardando_aprovacao' | 'em_manutencao' | 'testes' | 'pronto' | 'entregue'
 
-export interface FotoOS { id: string; fase: 'chegada' | 'dano' | 'saida'; url: string; legenda: string }
+export interface FotoOS { id: string; fase: 'chegada' | 'dano' | 'saida' | 'peca_nova'; url: string; legenda: string }
 
 export interface RelatorioOS {
   geradoEm: string; resumo: string; condicaoChegada: string; diagnostico: string
   servicosExecutados: string; testes: string; recomendacoes: string; notasTecnico: string
+  /** Lista detalhada problema → solução, usada no relatório de entrega. */
+  problemas?: { problema: string; solucao: string; pecas?: string }[]
 }
 
 export interface OrdemServico {
@@ -177,6 +187,41 @@ export interface Compromisso {
   observacoes?: string
 }
 
+export interface Fornecedor {
+  id: string; nome: string; cidade: string; contato: string; fone: string; email: string
+  categorias: string[]; prazoMedioDias: number
+}
+
+export interface ItemCotacao { produtoId?: string; descricao: string; quantidade: number }
+
+export interface RespostaCotacao {
+  fornecedorId: string
+  /** Mesmo índice dos itens; 0 = não tem. */
+  precos: number[]
+  frete: number; outrasDespesas: number; prazoDias: number; observacao?: string; recebidaEm: string
+}
+
+export interface Cotacao {
+  id: string; numero: number; titulo: string; osId?: string; criadaEm: string
+  status: 'rascunho' | 'enviada' | 'respondida' | 'fechada'
+  itens: ItemCotacao[]
+  fornecedorIds: string[]
+  respostas: RespostaCotacao[]
+  escolhidaId?: string
+}
+
+export interface MensagemChamado {
+  id: string; de: 'cliente' | 'ia' | 'equipe'; texto: string; hora: string
+  autor?: string; passos?: string[]; fonte?: string; fotoUrl?: string
+}
+
+export interface Chamado {
+  id: string; numero: number; clienteId: string; equipamentoId?: string; assunto: string
+  status: 'ia' | 'aguardando_equipe' | 'equipe' | 'resolvido'
+  abertoEm: string; atualizadoEm: string; responsavel?: string
+  mensagens: MensagemChamado[]
+}
+
 export interface Dados {
   empresa: Empresa
   usuarios: Usuario[]
@@ -193,4 +238,7 @@ export interface Dados {
   leads: Lead[]
   conversas: Conversa[]
   compromissos: Compromisso[]
+  fornecedores: Fornecedor[]
+  cotacoes: Cotacao[]
+  chamados: Chamado[]
 }

@@ -36,13 +36,29 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     [2106, 'cli-06', 21, 15, 'aprovado', [P('mot-t50', 2), P('esc-t50', 2), P('braco-t50'), S('srv-diag-queda'), S('srv-motor', 2), S('srv-teste-voo')], 0, 0, 'Boleto 30 dias', '10 dias úteis', 'os-1042'],
     [2107, 'cli-13', 1, 15, 'rascunho', [P('rtk-base'), P('rtk-relay'), S('srv-treino')], 0, 0, 'A combinar', '15 dias'],
     [2108, 'cli-07', 9, 15, 'enviado', [P('drone-t25'), P('bat-db800'), S('srv-caar'), S('srv-treino')], 3500, 0, 'Financiamento 24x', '12 dias úteis'],
-    [2109, 'cli-12', 12, 15, 'aprovado', [P('drone-t70p'), P('rtk-base'), P('bat-db2160', 2), S('srv-treino')], 5900, 0, 'Financiamento 36x', '25 dias'],
+    [2109, 'cli-12', 12, 15, 'aprovado', [P('drone-t70p'), P('rtk-base'), P('bat-db2160', 2), S('srv-treino')], 5900, 0, 'Financiamento 36x', '25 dias'],    [2110, 'cli-06', 2, 10, 'enviado', [P('bomba-t40'), P('kit-vedacao'), S('srv-limpeza'), S('srv-teste-voo')], 0, 0, 'Boleto 15 dias', '5 dias úteis', 'os-1033'],
+    [2111, 'cli-01', 1, 7, 'enviado', [{ id: uid('it'), tipo: 'servico', descricao: 'Pulverização aérea com drone (soja, 120 ha)', quantidade: 120, valorUnit: 85 }], 0, 0, 'PIX após a aplicação', 'Conforme a janela de aplicação'],
   ]
   const orcamentos: Orcamento[] = O_.map(([numero, clienteId, dias, validade, status, itens, desconto, frete, formaPagamento, prazoEntrega, osId, ia]) => ({
     id: `orc-${numero}`, numero, clienteId, data: diasAtras(dias), validade: diasAFrente(validade - dias), status, itens,
     desconto, frete, formaPagamento, prazoEntrega,
     observacoes: 'Valores sujeitos a confirmação de estoque. Garantia de 90 dias para peças e serviços.',
     vendedor: 'Diego Santos', osId, criadoPorIA: ia,
+    ...(numero === 2110 && {
+      tipo: 'manutencao' as const,
+      laudo: {
+        diagnostico: 'Bomba de pulverização sem pressão estável e filtro do tanque obstruído por resíduo de calda seca. Selo da bomba com desgaste visível.',
+        causa: 'Falta de lavagem do sistema ao fim da aplicação, o que ressecou o resíduo no filtro e acelerou o desgaste do selo.',
+        recomendacao: 'Trocar a bomba e o kit de vedação, limpar todo o circuito e validar a vazão em voo. Lavar o sistema ao fim de cada dia de aplicação.',
+      },
+    }),
+    ...(numero === 2111 && {
+      tipo: 'pulverizacao' as const,
+      pulverizacao: {
+        areaHa: 120, cultura: 'Soja', produto: 'Fungicida (fornecido pelo cliente)', vazaoLHa: 10, valorHa: 85, data: diasAFrente(5),
+        observacoes: 'Aplicação condicionada a vento abaixo de 10 km/h e umidade relativa acima de 55%.',
+      },
+    }),
   }))
 
   // ---------- Ordens de serviço (a partir de 1031)
@@ -51,6 +67,11 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     { id: uid('ft'), fase: 'dano' as const, url: fotoPlaceholder(leg[1], 'dano'), legenda: leg[1] },
     { id: uid('ft'), fase: 'saida' as const, url: fotoPlaceholder(leg[2], 'saida'), legenda: leg[2] },
   ]
+  const pecaNova = (leg: string) => ({ id: uid('ft'), fase: 'peca_nova' as const, url: fotoPlaceholder(leg, 'peca_nova'), legenda: leg })
+  const PECAS_NOVAS: Record<number, string[]> = {
+    1042: ['Motores 3 e 4 novos instalados', 'ESCs novos e braço traseiro direito'],
+    1043: ['Bicos centrífugos novos e hélice 2 nova'],
+  }
   type R = [number, string, string, StatusOS, number, number, string, string, string, ItemComercial[], boolean, string?]
   // numero, cliente, equipamento, status, dias desde abertura, prazo em dias, técnico, relato, diagnóstico, itens, fotos, orcamento
   const T1 = 'Tiago Ferreira'
@@ -91,6 +112,11 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
       testes: 'Teste em bancada com carga: temperatura dos motores abaixo de 62 °C em 15 minutos. Voo pairado de 10 minutos estável. Voo com 40 L de água: vazão uniforme nos dois bicos, sem vibração e sem alertas de radar.',
       recomendacoes: 'Evitar operação em bordas de mata e linhas de transmissão sem a base RTK. Substituir as hélices a cada 150 horas de voo. Revisão geral na marca de 300 horas.',
       notasTecnico: 'Cliente orientado sobre o uso da base D-RTK 3 e sobre o procedimento de retorno seguro ao perder o sinal.',
+      problemas: [
+        { problema: 'Motores 3 e 4 com bobina em curto', solucao: 'Substituição dos dois motores e teste de carga em bancada.', pecas: 'Motor de propulsão T50 (2)' },
+        { problema: 'ESCs 3 e 4 queimados por sobrecorrente', solucao: 'Troca dos dois ESCs e verificação da fiação.', pecas: 'ESC T50 (2)' },
+        { problema: 'Braço traseiro direito empenado', solucao: 'Substituição do braço e reaperto de toda a estrutura.', pecas: 'Braço T50 (1)' },
+      ],
     },
     1043: {
       geradoEm: diasAtras(24),
@@ -101,6 +127,10 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
       testes: 'Teste de vazão com 20 L: variação de 3% entre os bicos. Voo de 12 minutos em modo de pulverização, sem alertas. Verificação de IMU e bússola sem desvios.',
       recomendacoes: 'Lavar o sistema de pulverização ao fim de cada dia de aplicação. Trocar os bicos restantes ao atingir 450 horas. Próxima revisão com 400 horas.',
       notasTecnico: 'Equipamento em ótimo estado de conservação. Cliente mantém boa rotina de limpeza.',
+      problemas: [
+        { problema: 'Bicos centrífugos com disco desgastado', solucao: 'Troca de dois bicos e teste de vazão com 20 L.', pecas: 'Bico centrífugo T40 (2)' },
+        { problema: 'Hélice 2 com microtrinca na raiz', solucao: 'Substituição da hélice e reaperto dos parafusos.', pecas: 'Hélice T40 (1)' },
+      ],
     },
   }
   const ordens: OrdemServico[] = R_.map(([numero, clienteId, equipamentoId, status, dias, prazo, tecnico, relatoCliente, diagnostico, itens, comFotos, orc]) => ({
@@ -109,7 +139,10 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     conclusao: status === 'entregue' ? diasAtras(Math.max(1, dias - prazo - 1)) : undefined,
     tecnico, relatoCliente, diagnostico, itens,
     fotos: comFotos
-      ? fotos([`Equipamento na chegada, OS ${numero}`, numero === 1043 ? 'Bicos com resíduo e desgaste' : 'Dano identificado na inspeção', 'Equipamento revisado, pronto para entrega'])
+      ? [
+        ...fotos([`Equipamento na chegada, OS ${numero}`, numero === 1043 ? 'Bicos com resíduo e desgaste' : 'Dano identificado na inspeção', 'Equipamento revisado, pronto para entrega']),
+        ...(PECAS_NOVAS[numero] ?? []).map(pecaNova),
+      ]
       : [],
     relatorio: rel[numero],
     orcamentoId: orc,

@@ -14,6 +14,8 @@ import { AgendaChecklistOS } from './AgendaChecklistOS'
 import { CartaoLocal, EditorLocal } from './LocalUI'
 import { CompromissoGaveta } from '@/pages/agenda/CompromissoGaveta'
 import { quando } from '@/pages/agenda/agendaUtil'
+import { diasAFrente } from '@/data/seed'
+import { laudoSimulado, novoIdItem } from '@/lib/ai/orcamento'
 import type { Local, StatusOS } from '@/types'
 
 export default function OSDetalhe() {
@@ -66,6 +68,24 @@ export default function OSDetalhe() {
     if (a === 'campo' && !os.local) abrirEditorLocal()
   }
 
+  const gerarOrcamentoComLaudo = () => {
+    const numero = useStore.getState().proximoNumero('orcamento')
+    const oid = `orc-${numero}`
+    const laudo = laudoSimulado({
+      relato: os.relatoCliente, diagnosticoOS: os.diagnostico, itens: os.itens,
+      modeloNome: eq ? nomeModelo(eq.modeloId, modelos) : undefined, legendasFotos: os.fotos.map((f) => f.legenda).filter(Boolean),
+    })
+    salvar('orcamentos', {
+      id: oid, numero, clienteId: os.clienteId, data: new Date().toISOString(), validade: diasAFrente(15), status: 'rascunho', tipo: 'manutencao',
+      itens: os.itens.map((i) => ({ ...i, id: novoIdItem() })), desconto: 0, frete: 0, formaPagamento: 'A combinar', prazoEntrega: 'Conforme a previsão da OS',
+      observacoes: `Referente à OS ${os.numero}.`, vendedor: '', osId: os.id,
+      laudo: { ...laudo, fotoIds: os.fotos.filter((f) => f.fase === 'chegada' || f.fase === 'dano').map((f) => f.id) },
+    })
+    salvar('ordens', { ...os, orcamentoId: oid, historico: [...os.historico, { data: new Date().toISOString(), texto: `Orçamento ${numero} com laudo gerado a partir da OS` }] })
+    toast.sucesso(`Orçamento ${numero} criado com o laudo técnico`)
+    navegar(`/orcamentos/${oid}`)
+  }
+
   const salvarDiag = () => {
     if (diag !== os.diagnostico) {
       salvar('ordens', { ...os, diagnostico: diag, historico: [...os.historico, { data: new Date().toISOString(), texto: 'Diagnóstico atualizado' }] })
@@ -111,6 +131,7 @@ export default function OSDetalhe() {
             <p className="flex items-center gap-1.5"><CalendarPlus size={16} className="text-mata-suave" aria-hidden />Agendado para <span className="font-medium">{quando(proxAgenda.inicio)}</span> com {usuarios.find((u) => u.id === proxAgenda.tecnicoId)?.nome ?? os.tecnico}</p>
           ) : <p className="text-mata-suave">Sem visita agendada.</p>}
           <Button tamanho="sm" variante="secundario" icone={<CalendarPlus size={16} />} onClick={() => setAgendando(true)}>Agendar visita</Button>
+          <Button tamanho="sm" variante="secundario" icone={<FileText size={16} />} onClick={gerarOrcamentoComLaudo}>Gerar orçamento com laudo</Button>
           {!campo && <Button tamanho="sm" variante="fantasma" icone={<MapPin size={16} />} onClick={() => mudarAtendimento('campo')}>Atender em campo</Button>}
           {campo && <Button tamanho="sm" variante="fantasma" onClick={() => mudarAtendimento('oficina')}>Voltar para oficina</Button>}
         </div>

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { QrCode, Search } from 'lucide-react'
-import type { Cliente, Equipamento, ItemComercial, ModeloDrone, Produto, Servico } from '@/types'
+import type { Cliente, Equipamento, FotoOS, ItemComercial, ModeloDrone, Orcamento, Produto, Servico } from '@/types'
 import { Avatar, Button, CampoBusca, Selo, cx } from '@/components/ui'
 import { brl, normalizar } from '@/lib/format'
 import { buscarCatalogo, type OpcaoItem } from '@/lib/ai/orcamento'
 import { nomeModelo } from '@/store/selectors'
 import { LogoDocumento } from '@/components/layout/Marca'
+import { estimativas } from './ServicoUI'
 
 /** yyyy-mm-dd de um ISO. */
 export const paraInput = (iso: string | undefined) => (iso ? iso.slice(0, 10) : '')
@@ -131,6 +132,11 @@ export interface DadosProposta {
   prazoEntrega: string
   observacoes: string
   vendedor: string
+  tipo?: NonNullable<Orcamento['tipo']>
+  laudo?: { diagnostico: string; causa: string; recomendacao: string; fotoIds?: string[] }
+  fotosLaudo?: FotoOS[]
+  pulverizacao?: { areaHa: number; cultura: string; produto: string; vazaoLHa: number; valorHa: number; data: string; local?: { descricao: string; lat: number; lng: number }; observacoes?: string }
+  tanqueL?: number
 }
 
 export function Proposta({ d, empresa }: { d: DadosProposta; empresa: { nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string } }) {
@@ -159,6 +165,47 @@ export function Proposta({ d, empresa }: { d: DadosProposta; empresa: { nome: st
         {d.cliente && <p>{d.cliente.tipo === 'PJ' ? 'CNPJ' : 'CPF'} {d.cliente.documento} · {d.cliente.endereco}, {d.cliente.cidade}/{d.cliente.uf} · CEP {d.cliente.cep}</p>}
         {d.cliente && <p>{d.cliente.fone} · {d.cliente.email}</p>}
       </section>
+
+      {d.tipo === 'manutencao' && d.laudo && (d.laudo.diagnostico || d.laudo.causa || d.laudo.recomendacao) && (
+        <section className="mt-4 break-inside-avoid-page">
+          <h2 className="titulo mb-1 text-sm">Relatório técnico</h2>
+          {d.laudo.diagnostico && <p><b>Diagnóstico:</b> {d.laudo.diagnostico}</p>}
+          {d.laudo.causa && <p className="mt-1"><b>Causa provável:</b> {d.laudo.causa}</p>}
+          {d.laudo.recomendacao && <p className="mt-1"><b>Recomendação:</b> {d.laudo.recomendacao}</p>}
+          {!!d.fotosLaudo?.length && (
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {d.fotosLaudo.map((f) => (
+                <figure key={f.id} className="break-inside-avoid">
+                  <img src={f.url} alt={f.legenda || 'Foto do equipamento'} className="aspect-[4/3] w-full border border-neutral-300 object-cover" />
+                  {f.legenda && <figcaption className="mt-0.5 text-[11px] text-neutral-600">{f.legenda}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {d.tipo === 'pulverizacao' && d.pulverizacao && (() => {
+        const p = d.pulverizacao
+        const est = estimativas(p, d.tanqueL)
+        return (
+          <section className="mt-4 break-inside-avoid-page border border-neutral-400 p-3">
+            <h2 className="titulo mb-1 text-sm">Serviço de pulverização</h2>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+              <p><b>Área:</b> <span className="num">{p.areaHa.toLocaleString('pt-BR')} ha</span></p>
+              <p><b>Cultura:</b> {p.cultura || '-'}</p>
+              <p><b>Produto:</b> {p.produto || '-'}</p>
+              <p><b>Vazão:</b> <span className="num">{p.vazaoLHa.toLocaleString('pt-BR')} L/ha</span></p>
+              <p><b>Valor por hectare:</b> <span className="num">{brl(p.valorHa)}</span></p>
+              <p><b>Data prevista:</b> {p.data ? dt(p.data.length === 10 ? `${p.data}T12:00:00` : p.data) : 'a combinar'}</p>
+              {p.local && <p className="sm:col-span-2"><b>Local:</b> {p.local.descricao} ({p.local.lat.toFixed(4)}, {p.local.lng.toFixed(4)})</p>}
+              <p><b>Volume de calda estimado:</b> <span className="num">{est.volume.toLocaleString('pt-BR')} L</span></p>
+              {est.voos !== undefined && <p><b>Voos estimados:</b> <span className="num">{est.voos}</span></p>}
+              {p.observacoes && <p className="sm:col-span-2"><b>Observações:</b> {p.observacoes}</p>}
+            </div>
+          </section>
+        )
+      })()}
 
       <table className="mt-4 w-full border-collapse">
         <thead>

@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileText } from 'lucide-react'
 import type { Orcamento, StatusOrcamento } from '@/types'
-import { Button, CabecalhoPagina, CampoBusca, EstadoVazio, Indicador, Painel, Select, SeloIA, SeloStatus, Tabela, cx, type Coluna } from '@/components/ui'
+import { Button, CabecalhoPagina, Selo, CampoBusca, EstadoVazio, Indicador, Painel, Select, SeloIA, SeloStatus, Tabela, cx, type Coluna } from '@/components/ui'
 import { useStore } from '@/store'
 import { totalOrcamento } from '@/store/selectors'
 import { brl, dataCurta, normalizar } from '@/lib/format'
+import { TIPOS, rotuloTipo, type TipoOrcamento } from './ServicoUI'
 
 const SITUACOES: { id: 'todos' | StatusOrcamento; rotulo: string }[] = [
   { id: 'todos', rotulo: 'Todas as situações' }, { id: 'rascunho', rotulo: 'Rascunho' }, { id: 'enviado', rotulo: 'Enviado' },
@@ -18,6 +19,7 @@ export default function OrcamentosLista() {
   const clientes = useStore((s) => s.clientes)
   const [busca, setBusca] = useState('')
   const [situacao, setSituacao] = useState<'todos' | StatusOrcamento>('todos')
+  const [tipo, setTipo] = useState<'todos' | TipoOrcamento>('todos')
 
   const nomeCliente = (o: Orcamento) => clientes.find((c) => c.id === o.clienteId)?.nome ?? 'Cliente removido'
 
@@ -38,11 +40,12 @@ export default function OrcamentosLista() {
     const q = normalizar(busca).trim()
     return orcamentos.filter((o) => {
       if (situacao !== 'todos' && o.status !== situacao) return false
+      if (tipo !== 'todos' && (o.tipo ?? 'pecas') !== tipo) return false
       if (!q) return true
       return normalizar(`${o.numero} ${nomeCliente(o)} ${o.vendedor}`).includes(q)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orcamentos, clientes, busca, situacao])
+  }, [orcamentos, clientes, busca, situacao, tipo])
 
   const vencido = (o: Orcamento) => (o.status === 'rascunho' || o.status === 'enviado') && new Date(o.validade).getTime() < Date.now()
 
@@ -52,6 +55,7 @@ export default function OrcamentosLista() {
       id: 'cliente', titulo: 'Cliente', principal: true, valor: (o) => nomeCliente(o),
       render: (o) => <span className="inline-flex items-center gap-2">{nomeCliente(o)}{o.criadoPorIA && <SeloIA />}</span>,
     },
+    { id: 'tipo', titulo: 'Tipo', valor: (o) => rotuloTipo(o.tipo), render: (o) => <Selo cor={o.tipo === 'manutencao' ? 'azul' : o.tipo === 'pulverizacao' ? 'verde' : 'neutro'}>{rotuloTipo(o.tipo)}</Selo> },
     { id: 'data', titulo: 'Data', valor: (o) => o.data, render: (o) => dataCurta(o.data) },
     { id: 'validade', titulo: 'Validade', valor: (o) => o.validade, render: (o) => <span className={cx(vencido(o) && 'text-barro-texto')}>{dataCurta(o.validade)}</span> },
     { id: 'total', titulo: 'Total', alinhar: 'direita', valor: (o) => totalOrcamento(o), render: (o) => <span className="num font-medium">{brl(totalOrcamento(o))}</span> },
@@ -75,6 +79,10 @@ export default function OrcamentosLista() {
         <CampoBusca valor={busca} aoMudar={setBusca} placeholder="Buscar por número, cliente ou vendedor" className="sm:max-w-sm sm:flex-1" />
         <Select aria-label="Filtrar por situação" value={situacao} onChange={(e) => setSituacao(e.target.value as 'todos' | StatusOrcamento)} className="sm:w-56">
           {SITUACOES.map((s) => <option key={s.id} value={s.id}>{s.rotulo}</option>)}
+        </Select>
+        <Select aria-label="Filtrar por tipo" value={tipo} onChange={(e) => setTipo(e.target.value as 'todos' | TipoOrcamento)} className="sm:w-48">
+          <option value="todos">Todos os tipos</option>
+          {TIPOS.map((t) => <option key={t.id} value={t.id}>{t.rotulo}</option>)}
         </Select>
       </div>
 

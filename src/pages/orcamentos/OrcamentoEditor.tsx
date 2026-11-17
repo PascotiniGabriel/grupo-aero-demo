@@ -13,8 +13,9 @@ import { nomeModelo, pesoItens, totalItens } from '@/store/selectors'
 import { brl, dataCurta, peso } from '@/lib/format'
 import { diasAFrente } from '@/data/seed'
 import {
-  compativel, interpretarPedido, interpretarSimulado, itemDeProduto, itemDeServico, novoIdItem, type OpcaoItem, type PedidoInterpretado,
+  compativel, gerarLaudo, interpretarPedido, interpretarSimulado, itemDeProduto, itemDeServico, novoIdItem, type OpcaoItem, type PedidoInterpretado,
 } from '@/lib/ai/orcamento'
+import { ID_ITEM_PULV, PainelLaudo, PainelPulverizacao, SeletorTipo, itemPulverizacao, type LaudoEdicao, type PulvEdicao, type TipoOrcamento } from './ServicoUI'
 import { BuscaItem, FORMAS_PAGAMENTO, PRAZOS_ENTREGA, Proposta, SeletorCliente, deInput, paraInput, rotuloEquipamento } from './comum'
 
 const SUGESTOES = [
@@ -39,6 +40,20 @@ interface Rascunho {
   vendedor: string
   observacoes: string
   criadoPorIA: boolean
+  tipo: TipoOrcamento
+  laudo: LaudoEdicao
+  pulv: PulvEdicao
+  modeloPulv: string
+  osId?: string
+}
+
+const LAUDO_VAZIO: LaudoEdicao = { diagnostico: '', causa: '', recomendacao: '', fotoIds: [] }
+const pulvVazio = (): PulvEdicao => ({ areaHa: 0, cultura: '', produto: '', vazaoLHa: 10, valorHa: 0, data: paraInput(diasAFrente(7)), observacoes: '' })
+
+/** Mantém a linha automática da pulverização (área × valor por hectare) como primeiro item. */
+function comItemPulv(itens: ItemComercial[], p: PulvEdicao): ItemComercial[] {
+  const outros = itens.filter((i) => i.id !== ID_ITEM_PULV && !/^Pulverização —/.test(i.descricao))
+  return p.areaHa > 0 ? [itemPulverizacao(p), ...outros] : outros
 }
 
 export default function OrcamentoEditor() {
@@ -78,12 +93,16 @@ function Editor({ id }: { id?: string }) {
         descontoTipo: 'valor', descontoEntrada: existente.desconto, frete: existente.frete, formaPagamento: existente.formaPagamento,
         prazoEntrega: existente.prazoEntrega, validade: paraInput(existente.validade), vendedor: existente.vendedor,
         observacoes: existente.observacoes, criadoPorIA: !!existente.criadoPorIA,
+        tipo: existente.tipo ?? 'pecas', osId: existente.osId, modeloPulv: eqs.length === 1 ? eqs[0].modeloId : '',
+        laudo: existente.laudo ? { diagnostico: existente.laudo.diagnostico, causa: existente.laudo.causa, recomendacao: existente.laudo.recomendacao, fotoIds: existente.laudo.fotoIds ?? [] } : { ...LAUDO_VAZIO },
+        pulv: existente.pulverizacao ? { ...existente.pulverizacao, data: paraInput(existente.pulverizacao.data), observacoes: existente.pulverizacao.observacoes ?? '' } : pulvVazio(),
       }
     }
     return {
       clienteId: '', equipamentoId: '', itens: [], descontoTipo: 'valor', descontoEntrada: 0, frete: 0, formaPagamento: FORMAS_PAGAMENTO[0],
       prazoEntrega: PRAZOS_ENTREGA[1], validade: paraInput(diasAFrente(15)), vendedor: vendedorPadrao,
       observacoes: 'Valores sujeitos a confirmação de estoque. Garantia de 90 dias para peças e serviços.', criadoPorIA: false,
+      tipo: 'pecas', laudo: { ...LAUDO_VAZIO }, pulv: pulvVazio(), modeloPulv: '',
     }
   })
   const [status, setStatus] = useState<StatusOrcamento>(existente?.status ?? 'rascunho')
@@ -98,8 +117,17 @@ function Editor({ id }: { id?: string }) {
   const [confirmar, setConfirmar] = useState<null | 'aprovar' | 'recusar'>(null)
   const [previa, setPrevia] = useState(false)
   const [whats, setWhats] = useState<string | null>(null)
+  const [gerandoLaudo, setGerandoLaudo] = useState(false)
+  const ordens = useStore((s) => s.ordens)
 
   const atualizar = (p: Partial<Rascunho>) => setRasc((r) => ({ ...r, ...p }))
+  const mudarTipo = (tipo: TipoOrcamento) => setRasc((r) => ({
+    ...r, tipo,
+    itens: tipo === 'pulverizacao' ? comItemPulv(r.itens, r.pulv) : r.tipo === 'pulverizacao' ? r.itens.filter((i) => i.id !== ID_ITEM_PULV) : r.itens,
+    modeloPulv: r.modeloPulv || (tipo === 'pulverizacao' ? (equipamentos.find((e) => e.id === r.equipamentoId)?.modeloId ?? '') : ''),
+  }))
+  const mudarPulv = (p: Partial<PulvEdicao>) => setRasc((r) => { const pulv = { ...r.pulv, ...p }; return { ...r, pulv, itens: comItemPulv(r.itens, pulv) } })
+  const osLigada = rasc.osId ? ordens.find((o) => o.id === rasc.osId) : undefined
 
   /* ------------------------------------------------------------ derivados */
   const cliente = clientes.find((c) => c.id === rasc.clienteId)
@@ -181,6 +209,14 @@ function Editor({ id }: { id?: string }) {
     try {
       const r = await interpretarPedido(t, dadosIA, { clienteId: rasc.clienteId || undefined, modeloId })
       aplicar(r, true)
+      if (rasc.tipo === 'pulverizacao') {
+        const n = (x?: string) => (x ? Number(x.replace(',', '.')) : 0)
+        const area = n(t.match(/(\d+(?:[.,]\d+)?)\s*(?:ha|hectares?)\b/i)?.[1])
+        const valor = n(t.match(/R\$\s*(\d+(?:[.,]\d+)?)\s*(?:por|\/)\s*(?:ha|hectare)\b/i)?.[1])
+        const cultura = t.match(/\b(?:de|em|na|no)\s+(soja|milho|algodão|café|trigo|arroz|cana|feijão|batata|uva)\b/i)?.[1]
+        const produto = t.match(/\b(fungicida|inseticida|herbicida|maturador|adubo foliar)\b/i)?.[1]
+        mudarPulv({ ...(area > 0 && { areaHa: area }), ...(valor > 0 && { valorHa: valor }), ...(cultura && { cultura: cultura.toLowerCase() }), ...(produto && { produto: produto.toLowerCase() }) })
+      }
       setTexto('')
     } catch {
       toast.erro('Não consegui montar o orçamento. Tente descrever de outro jeito.')
@@ -189,11 +225,26 @@ function Editor({ id }: { id?: string }) {
     }
   }
 
+  const escreverLaudo = async () => {
+    if (gerandoLaudo) return
+    setGerandoLaudo(true)
+    try {
+      const l = await gerarLaudo({
+        relato: osLigada?.relatoCliente ?? '', diagnosticoOS: osLigada?.diagnostico ?? '', itens: rasc.itens,
+        modeloNome: modeloId ? nomeModelo(modeloId, modelos) : undefined, legendasFotos: osLigada?.fotos.map((f) => f.legenda).filter(Boolean),
+      })
+      setRasc((r) => ({ ...r, laudo: { ...r.laudo, ...l }, criadoPorIA: true }))
+      toast.sucesso('Laudo escrito. Revise antes de enviar.')
+    } catch { toast.erro('Não consegui escrever o laudo. Tente de novo.') } finally { setGerandoLaudo(false) }
+  }
+
   /* ------------------------------------------------------------ parâmetros de URL (só em /novo) */
   const iniciou = useRef(false)
   useEffect(() => {
     if (iniciou.current || id) return
     iniciou.current = true
+    const tp = params.get('tipo')
+    if (tp === 'manutencao' || tp === 'pulverizacao' || tp === 'drone') mudarTipo(tp)
     const cli = params.get('cliente')
     if (cli && clientes.some((c) => c.id === cli)) {
       const eqs = equipamentos.filter((e) => e.clienteId === cli)
@@ -236,11 +287,15 @@ function Editor({ id }: { id?: string }) {
     id: salvoId ?? existente?.id ?? idNovo.current, numero: num, clienteId: rasc.clienteId, data: existente?.data ?? dataCriacao.current,
     validade: deInput(rasc.validade), status: st, itens: rasc.itens, desconto: descontoReais, frete: rasc.frete || 0,
     formaPagamento: rasc.formaPagamento, prazoEntrega: rasc.prazoEntrega, observacoes: rasc.observacoes, vendedor: rasc.vendedor,
-    osId: existente?.osId, criadoPorIA: rasc.criadoPorIA || undefined,
+    osId: rasc.osId, criadoPorIA: rasc.criadoPorIA || undefined,
+    tipo: rasc.tipo === 'pecas' ? undefined : rasc.tipo,
+    laudo: rasc.tipo === 'manutencao' ? { diagnostico: rasc.laudo.diagnostico, causa: rasc.laudo.causa, recomendacao: rasc.laudo.recomendacao, fotoIds: rasc.laudo.fotoIds } : undefined,
+    pulverizacao: rasc.tipo === 'pulverizacao' ? { ...rasc.pulv, data: deInput(rasc.pulv.data), observacoes: rasc.pulv.observacoes || undefined } : undefined,
   })
 
   const validar = (): boolean => {
     if (!rasc.clienteId) { toast.erro('Escolha o cliente do orçamento'); return false }
+    if (rasc.tipo === 'pulverizacao' && rasc.pulv.areaHa <= 0 && rasc.itens.length === 0) { toast.erro('Informe a área em hectares'); return false }
     if (rasc.itens.length === 0) { toast.erro('Adicione ao menos um item'); return false }
     return true
   }
@@ -272,7 +327,7 @@ function Editor({ id }: { id?: string }) {
     const num = useStore.getState().proximoNumero('orcamento')
     const copia: Orcamento = {
       ...montar('rascunho', num), id: novoId('orc'), data: new Date().toISOString(), validade: deInput(paraInput(diasAFrente(15))),
-      itens: rasc.itens.map((i) => ({ ...i, id: novoIdItem() })), osId: undefined,
+      itens: rasc.itens.map((i) => (i.id === ID_ITEM_PULV ? i : { ...i, id: novoIdItem() })), osId: undefined,
     }
     salvarNaStore('orcamentos', copia)
     toast.sucesso(`Orçamento ${num} criado como cópia`)
@@ -305,7 +360,11 @@ function Editor({ id }: { id?: string }) {
   const dadosProposta = {
     numero: mostrarNumero, data: existente?.data ?? dataCriacao.current, validade: deInput(rasc.validade), cliente, itens: rasc.itens,
     subtotal, desconto: descontoReais, frete: rasc.frete || 0, total, formaPagamento: rasc.formaPagamento, prazoEntrega: rasc.prazoEntrega,
-    observacoes: rasc.observacoes, vendedor: rasc.vendedor,
+    observacoes: rasc.observacoes, vendedor: rasc.vendedor, tipo: rasc.tipo,
+    laudo: rasc.tipo === 'manutencao' ? rasc.laudo : undefined,
+    fotosLaudo: rasc.tipo === 'manutencao' ? (osLigada?.fotos ?? []).filter((f) => rasc.laudo.fotoIds.includes(f.id)) : [],
+    pulverizacao: rasc.tipo === 'pulverizacao' ? rasc.pulv : undefined,
+    tanqueL: modelos.find((m) => m.id === rasc.modeloPulv)?.tanqueL,
   }
   const modeloNome = modeloId ? nomeModelo(modeloId, modelos) : ''
   const pronto = !!cliente && rasc.itens.length > 0
@@ -325,6 +384,8 @@ function Editor({ id }: { id?: string }) {
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="flex min-w-0 flex-col gap-5">
+            <Painel titulo="Tipo de orçamento"><SeletorTipo valor={rasc.tipo} aoMudar={mudarTipo} /></Painel>
+
             {/* IA */}
             <section aria-label="Descreva o orçamento">
               <div className="mb-2 flex items-center gap-2">
@@ -362,6 +423,19 @@ function Editor({ id }: { id?: string }) {
               </div>
             </Painel>
 
+            {rasc.tipo === 'pulverizacao' && (
+              <PainelPulverizacao
+                p={rasc.pulv} aoMudar={mudarPulv} modelos={modelos} modeloId={rasc.modeloPulv} aoModelo={(m) => atualizar({ modeloPulv: m })}
+                locaisCliente={cliente?.locais ?? []}
+              />
+            )}
+            {rasc.tipo === 'manutencao' && (
+              <PainelLaudo
+                laudo={rasc.laudo} aoMudar={(p) => setRasc((r) => ({ ...r, laudo: { ...r.laudo, ...p } }))} fotosOS={osLigada?.fotos ?? []}
+                osNumero={osLigada?.numero} gerando={gerandoLaudo} aoGerar={() => void escreverLaudo()}
+              />
+            )}
+
             {/* Itens */}
             <Painel titulo={`Itens${rasc.itens.length ? ` (${rasc.itens.length})` : ''}`}>
               <BuscaItem modeloId={modeloId} produtos={produtos} servicos={servicos} aoEscolher={escolherOpcao} aoLerQR={lerQR} />
@@ -385,6 +459,14 @@ function Editor({ id }: { id?: string }) {
                   </li>
                 ))}
                 {rasc.itens.map((i) => {
+                  if (i.id === ID_ITEM_PULV) {
+                    return (
+                      <li key={i.id} className="flex items-center justify-between gap-2 border-b border-linha py-3 text-sm last:border-b-0">
+                        <div className="min-w-0"><p className="font-medium">{i.descricao}</p><p className="text-xs text-mata-suave">Linha automática: área × valor por hectare</p></div>
+                        <span className="num font-medium">{brl(i.quantidade * i.valorUnit)}</span>
+                      </li>
+                    )
+                  }
                   const prod = i.produtoId ? produtos.find((x) => x.id === i.produtoId) : undefined
                   const naoServe = prod && modeloId && compativel(prod, modeloId) === false
                   return (

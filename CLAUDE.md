@@ -57,6 +57,9 @@ mostrar o fluxo completo do sistema. Layout simples, objetivo e intuitivo.
 | `/relatorios`, `/relatorios/:osId` | Relatórios de manutenção | `pages/relatorios` |
 | `/estoque`, `/estoque/:id` | Peças e produtos | `pages/estoque` |
 | `/catalogo`, `/catalogo/:modeloId` | Catálogo com vista explodida | `pages/catalogo` |
+| `/compras`, `/compras/:id` | Compras: cotações e fornecedores | `pages/compras` |
+| `/chamados`, `/chamados/:id` | Chamados de suporte (equipe acompanha a IA) | `pages/chamados` |
+| `/suporte/:equipamentoId` | Tela pública do cliente (fora do AppShell; QR do drone) | `pages/suporte` |
 | `/notas` | Notas fiscais | `pages/notas` |
 | `/financeiro` | Financeiro | `pages/financeiro` |
 | `/assistente` | Assistente IA | `pages/assistente` |

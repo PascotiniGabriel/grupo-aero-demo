@@ -10,6 +10,7 @@ export const FASES: { id: FotoOS['fase']; rotulo: string; dica: string; cor: str
   { id: 'chegada', rotulo: 'Chegada', dica: 'Como o drone chegou', cor: 'text-ceu' },
   { id: 'dano', rotulo: 'Danos', dica: 'Peças danificadas', cor: 'text-barro-texto' },
   { id: 'saida', rotulo: 'Saída', dica: 'Como o drone vai sair', cor: 'text-lavoura-texto' },
+  { id: 'peca_nova', rotulo: 'Peças novas', dica: 'Peças novas instaladas', cor: 'text-ambar-texto' },
 ]
 
 /** Hook: adiciona várias fotos de uma vez a uma fase da OS. */

@@ -5,9 +5,9 @@ export type Papel = Usuario['papel']
 /** Primeiro trecho da rota ('' = Início) que cada papel pode abrir. Gestor abre tudo. */
 const PERMITIDAS: Record<Papel, string[] | 'tudo'> = {
   Gestor: 'tudo',
-  Vendas: ['', 'funil', 'orcamentos', 'clientes', 'conversas', 'estoque', 'catalogo', 'assistente', 'config'],
-  Técnico: ['agenda', 'os', 'relatorios', 'estoque', 'catalogo', 'assistente', 'config'],
-  Estoque: ['', 'estoque', 'catalogo', 'notas', 'os', 'assistente', 'config'],
+  Vendas: ['', 'funil', 'orcamentos', 'clientes', 'conversas', 'chamados', 'estoque', 'catalogo', 'assistente', 'config'],
+  Técnico: ['agenda', 'os', 'relatorios', 'chamados', 'estoque', 'catalogo', 'assistente', 'config'],
+  Estoque: ['', 'estoque', 'compras', 'catalogo', 'notas', 'os', 'assistente', 'config'],
 }
 
 function segmento(rota: string): string {
@@ -26,10 +26,10 @@ export function inicioDoPapel(papel: Papel): string {
 }
 
 export const VISAO_POR_PAPEL: Record<Papel, string> = {
-  Gestor: 'Vê tudo: painel, funil, orçamentos, oficina, estoque, notas, financeiro e configurações.',
-  Vendas: 'Início comercial, funil, orçamentos, clientes, conversas, consulta de peças, catálogo e assistente. Sem financeiro nem custos.',
-  Técnico: 'Minha agenda, ordens de serviço, relatórios de manutenção, consulta de peças, catálogo e assistente.',
-  Estoque: 'Início de estoque, peças e produtos, catálogo, notas fiscais (entrada por XML), consulta das ordens de serviço e assistente.',
+  Gestor: 'Vê tudo: painel, funil, orçamentos, oficina, estoque, compras, chamados, notas, financeiro e configurações.',
+  Vendas: 'Início comercial, funil, orçamentos, clientes, conversas, chamados de suporte, consulta de peças, catálogo e assistente. Sem financeiro nem custos.',
+  Técnico: 'Minha agenda, ordens de serviço, relatórios de manutenção, chamados de suporte, consulta de peças, catálogo e assistente.',
+  Estoque: 'Início de estoque, peças e produtos, compras e cotações, catálogo, notas fiscais (entrada por XML), consulta das ordens de serviço e assistente.',
 }
 
 // ---------------------------------------------------------------- Assistente IA: assuntos por papel

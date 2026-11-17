@@ -390,3 +390,69 @@ export async function interpretarPedido(texto: string, dados: DadosPedido, conte
 
 /** Versão síncrona do caminho simulado (testes e uso interno). */
 export const interpretarSimulado = simulado
+
+/* ------------------------------------------------------------------ laudo técnico (orçamento de manutenção) */
+
+export interface ContextoLaudo {
+  relato: string
+  diagnosticoOS: string
+  itens: ItemComercial[]
+  modeloNome?: string
+  legendasFotos?: string[]
+}
+export interface Laudo { diagnostico: string; causa: string; recomendacao: string }
+
+const cap1 = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t)
+const semPontoFinal = (t: string) => t.trim().replace(/[.\s]+$/, '')
+
+/** Laudo local, escrito a partir do relato, do diagnóstico e dos itens da OS. Sempre funciona. */
+export function laudoSimulado(c: ContextoLaudo): Laudo {
+  const base = normalizar(`${c.relato} ${c.diagnosticoOS} ${(c.legendasFotos ?? []).join(' ')}`)
+  const pecas = c.itens.filter((i) => i.tipo === 'peca')
+  const servs = c.itens.filter((i) => i.tipo !== 'peca')
+  const drone = c.modeloNome ? ` do ${c.modeloNome}` : ' do equipamento'
+
+  const diag = semPontoFinal(c.diagnosticoOS)
+  const rel = semPontoFinal(c.relato)
+  const diagnostico = diag
+    ? `Na avaliação técnica${drone}, foi constatado o seguinte: ${diag.charAt(0).toLowerCase()}${diag.slice(1)}.${rel ? ` Relato do cliente: ${rel.charAt(0).toLowerCase()}${rel.slice(1)}.` : ''}`
+    : rel
+      ? `Equipamento${drone} recebido com o seguinte relato do cliente: ${rel.charAt(0).toLowerCase()}${rel.slice(1)}. A avaliação detalhada será confirmada na desmontagem.`
+      : `Equipamento${drone} recebido para avaliação técnica. O diagnóstico completo será confirmado na desmontagem.`
+
+  let causa: string
+  if (/queda|caiu|colis|bateu|impacto|tomb/.test(base)) causa = 'Impacto mecânico por queda ou colisão, que danificou a estrutura e os componentes de propulsão.'
+  else if (/oxid|corros|umidade|defensivo|calda/.test(base)) causa = 'Exposição a resíduos de calda e umidade, que oxidam contatos e conectores com o uso contínuo em campo.'
+  else if (/entup|bico|vazao|pressao|bomba/.test(base)) causa = 'Acúmulo de resíduos no circuito de calda, que reduz a vazão e sobrecarrega a bomba.'
+  else if (/motor|trav|esquent|vibr|ruido|helice/.test(base)) causa = 'Desgaste natural de rolamentos e componentes rotativos pelas horas de operação.'
+  else causa = 'Desgaste normal por horas de uso em operação agrícola, a ser confirmado na desmontagem.'
+
+  const acoes: string[] = []
+  if (pecas.length) acoes.push(`substituir ${pecas.map((p) => `${p.descricao.charAt(0).toLowerCase()}${p.descricao.slice(1)}${p.quantidade > 1 ? ` (${p.quantidade} un.)` : ''}`).join(', ')}`)
+  if (servs.length) acoes.push(`executar ${servs.map((s) => s.descricao.charAt(0).toLowerCase() + s.descricao.slice(1)).join(', ')}`)
+  const recomendacao = acoes.length
+    ? `${cap1(acoes.join(' e '))}, seguidos de teste de voo e conferência final antes da entrega. Prazo e valores conforme os itens desta proposta.`
+    : 'Realizar a manutenção corretiva conforme os itens desta proposta, seguida de teste de voo e conferência final antes da entrega.'
+  return { diagnostico, causa, recomendacao }
+}
+
+/** Escreve o laudo com IA: Gemini quando há chave (cai no simulado em erro), local caso contrário. */
+export async function gerarLaudo(c: ContextoLaudo): Promise<Laudo> {
+  if (iaReal()) {
+    try {
+      const itens = c.itens.map((i) => `${i.tipo}: ${i.descricao} x${i.quantidade}`).join('; ') || 'nenhum'
+      const bruto = await chamarGemini({
+        sistema: 'Você é um técnico de oficina de drones agrícolas DJI Agras. Escreva o relatório técnico que acompanha um orçamento de manutenção, em português do Brasil, em linguagem clara para o cliente, sem inventar fatos. Responda somente um objeto JSON com as chaves diagnostico, causa e recomendacao (textos).',
+        prompt: `Equipamento: ${c.modeloNome ?? '-'}\nRelato do cliente: ${c.relato || '-'}\nDiagnóstico registrado: ${c.diagnosticoOS || '-'}\nItens do orçamento: ${itens}\nLegendas das fotos: ${(c.legendasFotos ?? []).join('; ') || '-'}`,
+        json: true,
+      })
+      const j = JSON.parse(bruto.replace(/^```json\s*|\s*```$/g, '')) as Record<string, unknown>
+      if (['diagnostico', 'causa', 'recomendacao'].every((k) => typeof j[k] === 'string' && (j[k] as string).trim())) {
+        return { diagnostico: j.diagnostico as string, causa: j.causa as string, recomendacao: j.recomendacao as string }
+      }
+    } catch { /* cai no simulado */ }
+  } else {
+    await esperar(1800)
+  }
+  return laudoSimulado(c)
+}

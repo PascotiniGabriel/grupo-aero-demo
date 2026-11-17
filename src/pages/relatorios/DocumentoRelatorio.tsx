@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Pencil, Sparkles } from 'lucide-react'
+import { Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { Button, Input, Textarea, cx } from '@/components/ui'
 import { dataCurta, numero } from '@/lib/format'
 import type { SecaoRelatorio } from '@/lib/ai/relatorio'
@@ -86,6 +86,57 @@ function Fotos({ fotos, titulo }: { fotos: FotoOS[]; titulo: string }) {
   )
 }
 
+type Problema = NonNullable<RelatorioOS['problemas']>[number]
+
+function TabelaProblemas({ linhas, editavel, aoSalvar }: { linhas: Problema[]; editavel: boolean; aoSalvar: (l: Problema[]) => void }) {
+  const [editando, setEditando] = useState(false)
+  const [rascunho, setRascunho] = useState<Problema[]>(linhas)
+  const mudar = (i: number, p: Partial<Problema>) => setRascunho((r) => r.map((x, j) => (j === i ? { ...x, ...p } : x)))
+
+  if (editando) {
+    return (
+      <div className="nao-imprimir space-y-3">
+        {rascunho.map((l, i) => (
+          <div key={i} className="grid gap-2 rounded-campo border border-linha p-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+            <Textarea rows={2} value={l.problema} onChange={(e) => mudar(i, { problema: e.target.value })} placeholder="Problema encontrado" aria-label={`Problema ${i + 1}`} />
+            <Textarea rows={2} value={l.solucao} onChange={(e) => mudar(i, { solucao: e.target.value })} placeholder="Solução aplicada" aria-label={`Solução ${i + 1}`} />
+            <Textarea rows={2} value={l.pecas ?? ''} onChange={(e) => mudar(i, { pecas: e.target.value })} placeholder="Peças trocadas" aria-label={`Peças trocadas ${i + 1}`} />
+            <button type="button" onClick={() => setRascunho((r) => r.filter((_, j) => j !== i))} aria-label={`Remover linha ${i + 1}`} className="inline-flex h-10 w-10 items-center justify-center rounded-campo text-barro-texto hover:bg-barro/10"><Trash2 size={16} /></button>
+          </div>
+        ))}
+        <div className="flex flex-wrap gap-2">
+          <Button tamanho="sm" variante="secundario" icone={<Plus size={14} />} onClick={() => setRascunho((r) => [...r, { problema: '', solucao: '', pecas: '' }])}>Adicionar linha</Button>
+          <Button tamanho="sm" onClick={() => { aoSalvar(rascunho.filter((l) => l.problema.trim() || l.solucao.trim()).map((l) => ({ ...l, pecas: l.pecas?.trim() || undefined }))); setEditando(false) }}>Pronto</Button>
+          <Button tamanho="sm" variante="fantasma" onClick={() => setEditando(false)}>Cancelar</Button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div>
+      {linhas.length === 0 ? <p className="text-sm text-mata-suave">Nenhum problema listado. Gere o relatório ou adicione linhas.</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead><tr className="border-b border-linha text-left text-xs text-mata-suave"><th className="py-1.5 pr-2 font-medium">Problema encontrado</th><th className="py-1.5 pr-2 font-medium">Solução aplicada</th><th className="py-1.5 font-medium">Peças trocadas</th></tr></thead>
+            <tbody>
+              {linhas.map((l, i) => (
+                <tr key={i} className="break-inside-avoid border-b border-linha/60 align-top">
+                  <td className="py-1.5 pr-2">{l.problema}</td><td className="py-1.5 pr-2">{l.solucao}</td><td className="py-1.5">{l.pecas || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {editavel && (
+        <button type="button" onClick={() => { setRascunho(linhas.length ? linhas : [{ problema: '', solucao: '', pecas: '' }]); setEditando(true) }} className="nao-imprimir mt-1.5 inline-flex h-10 items-center gap-1 rounded-campo px-2 text-xs font-medium text-mata-suave hover:bg-mata/5 hover:text-mata">
+          <Pencil size={14} />Editar tabela
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function DocumentoRelatorio({ os, cliente, equipamento, modelo, empresa, produtos, relatorio, editavel, reescrevendo, aoMudar, aoReescrever }: {
   os: OrdemServico; cliente?: Cliente; equipamento?: Equipamento; modelo?: ModeloDrone; empresa: Empresa; produtos: Produto[]
   relatorio: RelatorioOS; editavel: boolean; reescrevendo: SecaoRelatorio | null
@@ -101,7 +152,7 @@ export function DocumentoRelatorio({ os, cliente, equipamento, modelo, empresa, 
     />
   )
   return (
-    <article className="folha-impressao rounded-painel border border-linha bg-papel p-5 sm:p-8" aria-label="Relatório de manutenção">
+    <article className="folha-impressao rounded-painel border border-linha bg-papel p-5 sm:p-8" aria-label="Relatório de entrega">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-mata pb-4">
         <div>
           <Marca largura={120} className="mb-1" />
@@ -109,7 +160,7 @@ export function DocumentoRelatorio({ os, cliente, equipamento, modelo, empresa, 
           <p className="text-xs text-mata-suave">CNPJ {empresa.cnpj} · {empresa.cidade} · {empresa.fone}</p>
         </div>
         <div className="text-right">
-          <h2 className="titulo text-xl">Relatório de manutenção</h2>
+          <h2 className="titulo text-xl">Relatório de entrega</h2>
           <p className="num text-sm font-medium">OS {os.numero}</p>
           <p className="num text-xs text-mata-suave">Entrada {dataCurta(os.abertura)}{os.conclusao ? ` · Conclusão ${dataCurta(os.conclusao)}` : ''} · Emitido {dataCurta(relatorio.geradoEm)}</p>
         </div>
@@ -130,8 +181,11 @@ export function DocumentoRelatorio({ os, cliente, equipamento, modelo, empresa, 
 
       <div className="mt-6 space-y-6">
         <Secao titulo="Resumo">{ed('resumo')}</Secao>
-        <Secao titulo="Condição na chegada">{ed('condicaoChegada')}<Fotos fotos={por('chegada')} titulo="Fotos de chegada" /></Secao>
-        <Secao titulo="Diagnóstico">{ed('diagnostico')}<Fotos fotos={por('dano')} titulo="Peças danificadas" /></Secao>
+        <Secao titulo="Como chegou">{ed('condicaoChegada')}<Fotos fotos={por('chegada')} titulo="Fotos de chegada" /><Fotos fotos={por('dano')} titulo="Peças danificadas" /></Secao>
+        <Secao titulo="Diagnóstico">{ed('diagnostico')}</Secao>
+        <Secao titulo="Problemas encontrados e soluções">
+          <TabelaProblemas linhas={relatorio.problemas ?? []} editavel={editavel} aoSalvar={(l) => aoMudar({ problemas: l })} />
+        </Secao>
         <Secao titulo="Serviços executados">{ed('servicosExecutados')}</Secao>
         <Secao titulo="Peças substituídas">
           {pecas.length === 0 ? <p className="text-sm text-mata-suave">Nenhuma peça substituída nesta OS.</p> : (
@@ -152,7 +206,8 @@ export function DocumentoRelatorio({ os, cliente, equipamento, modelo, empresa, 
             </table>
           )}
         </Secao>
-        <Secao titulo="Testes e condição de saída">{ed('testes')}<Fotos fotos={por('saida')} titulo="Fotos de saída" /></Secao>
+        {por('peca_nova').length > 0 && <Secao titulo="Peças novas instaladas"><Fotos fotos={por('peca_nova')} titulo="Fotos das peças novas" /></Secao>}
+        <Secao titulo="Como saiu">{ed('testes')}<Fotos fotos={por('saida')} titulo="Fotos de saída" /></Secao>
         <Secao titulo="Recomendações">{ed('recomendacoes')}</Secao>
       </div>
 

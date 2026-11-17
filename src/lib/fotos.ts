@@ -4,6 +4,7 @@ const FUNDO: Record<FotoOS['fase'], { bg: string; fg: string }> = {
   chegada: { bg: '#E4F0FA', fg: '#1E78C8' },
   dano: { bg: '#FBE7E4', fg: '#C8402F' },
   saida: { bg: '#E3F3EA', fg: '#1F8A4C' },
+  peca_nova: { bg: '#FBF1D6', fg: '#8A6400' },
 }
 
 function esc(t: string) {
@@ -13,7 +14,7 @@ function esc(t: string) {
 /** Foto fictícia 4:3 (data URI SVG) para dados de demonstração. */
 export function fotoPlaceholder(legenda: string, fase: FotoOS['fase']): string {
   const { bg, fg } = FUNDO[fase]
-  const rotulo = fase === 'chegada' ? 'Chegada' : fase === 'dano' ? 'Dano' : 'Saída'
+  const rotulo = fase === 'chegada' ? 'Chegada' : fase === 'dano' ? 'Dano' : fase === 'peca_nova' ? 'Peça nova' : 'Saída'
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">` +
     `<rect width="640" height="480" fill="${bg}"/>` +

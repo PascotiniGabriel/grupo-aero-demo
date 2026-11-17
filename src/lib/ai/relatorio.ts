@@ -469,6 +469,45 @@ function secaoResumo(ctx: ContextoRelatorio, an: Analise, v: number): string {
   return [a, b, c, fim].filter(Boolean).join(' ')
 }
 
+type LinhaProblema = NonNullable<RelatorioOS['problemas']>[number]
+
+/** Deriva a tabela problema → solução das palavras-chave e dos itens da OS. */
+function gerarProblemas(ctx: ContextoRelatorio): LinhaProblema[] {
+  const an = analisar(ctx.notas)
+  const { os } = ctx
+  const usados = new Set<string>()
+  const linhas: LinhaProblema[] = []
+  for (const d of an.achados) {
+    const c = d.achado.comp
+    const r = c ? refComp(c, d.nums, d.plural) : { txt: '', pl: false }
+    const problema = cap(d.achado.frase(r.txt, r.pl, d.trecho, c))
+    const troca = c ? an.trocas.find((t) => t.comp.id === c.id) : undefined
+    const item = c ? pecaDoItem(os, c, usados) : undefined
+    let solucao: string
+    if (troca || item) solucao = `Substituição ${r.txt.replace(/^o /, 'do ').replace(/^a /, 'da ').replace(/^os /, 'dos ').replace(/^as /, 'das ')} por peça nova, com teste após a montagem`
+    else if (/bico|entup/.test(d.achado.id)) solucao = 'Limpeza e desobstrução, com teste de vazão'
+    else if (an.limpeza.length) solucao = an.limpeza[0]
+    else if (an.reparos.length) solucao = cap(an.reparos[0])
+    else solucao = 'Correção realizada pela oficina e validada nos testes finais'
+    const qtd = item && item.quantidade > 1 ? ` (${item.quantidade} un.)` : ''
+    linhas.push({ problema, solucao, pecas: item ? `${item.descricao}${qtd}` : undefined })
+  }
+  for (const it of os.itens) {
+    if (it.tipo === 'peca' && !usados.has(it.id)) {
+      usados.add(it.id)
+      linhas.push({
+        problema: `${cap(it.descricao)} com defeito ou desgaste`,
+        solucao: 'Substituição por peça nova',
+        pecas: `${it.descricao}${it.quantidade > 1 ? ` (${it.quantidade} un.)` : ''}`,
+      })
+    }
+  }
+  if (!linhas.length && os.diagnostico.trim()) {
+    linhas.push({ problema: cap(semPonto(os.diagnostico)), solucao: 'Reparo executado conforme os serviços da OS', pecas: undefined })
+  }
+  return linhas
+}
+
 function gerarSecoes(ctx: ContextoRelatorio, v: number): Record<SecaoRelatorio, string> {
   const an = analisar(ctx.notas)
   return {
@@ -497,7 +536,7 @@ function promptGemini(ctx: ContextoRelatorio, secoes?: SecaoRelatorio[]): string
     `Itens da OS: ${itens}`,
     `Legendas das fotos: ${fotos}`,
     `Anotações do técnico: ${ctx.notas || '-'}`,
-    `Devolva um JSON com as chaves: ${chaves}. Cada valor é texto. Em servicosExecutados e recomendacoes use uma linha por item iniciada por "- ". Em resumo, condicaoChegada, diagnostico e testes use parágrafos corridos.`,
+    `Devolva um JSON com as chaves: ${chaves}${secoes ? '' : ', problemas'}. A chave problemas é uma lista de objetos {problema, solucao, pecas} (pecas é texto opcional com as peças trocadas), um por defeito encontrado e sua correção. Cada valor é texto. Em servicosExecutados e recomendacoes use uma linha por item iniciada por "- ". Em resumo, condicaoChegada, diagnostico e testes use parágrafos corridos.`,
   ].join('\n')
 }
 
@@ -506,6 +545,13 @@ function imagensDaOS(os: OrdemServico): string[] {
 }
 
 /* ---------- API pública ---------- */
+
+function lerProblemas(v: unknown): LinhaProblema[] | undefined {
+  if (!Array.isArray(v)) return undefined
+  const l = v.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && typeof (x as Record<string, unknown>).problema === 'string')
+    .map((x) => ({ problema: String(x.problema), solucao: String(x.solucao ?? ''), pecas: typeof x.pecas === 'string' && x.pecas.trim() ? x.pecas : undefined }))
+  return l.length ? l : undefined
+}
 
 export async function gerarRelatorio(ctx: ContextoRelatorio): Promise<RelatorioOS> {
   if (iaReal()) {
@@ -518,6 +564,7 @@ export async function gerarRelatorio(ctx: ContextoRelatorio): Promise<RelatorioO
           resumo: j.resumo as string, condicaoChegada: j.condicaoChegada as string, diagnostico: j.diagnostico as string,
           servicosExecutados: j.servicosExecutados as string, testes: j.testes as string, recomendacoes: j.recomendacoes as string,
           notasTecnico: ctx.notas,
+          problemas: lerProblemas(j.problemas) ?? gerarProblemas(ctx),
         }
       }
     } catch { /* cai no simulado */ }
@@ -525,7 +572,7 @@ export async function gerarRelatorio(ctx: ContextoRelatorio): Promise<RelatorioO
     await esperar(2600)
   }
   const s = gerarSecoes(ctx, 0)
-  return { geradoEm: new Date().toISOString(), ...s, notasTecnico: ctx.notas }
+  return { geradoEm: new Date().toISOString(), ...s, notasTecnico: ctx.notas, problemas: gerarProblemas(ctx) }
 }
 
 const JARGAO: [RegExp, string][] = [

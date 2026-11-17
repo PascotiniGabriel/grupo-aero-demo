@@ -2,6 +2,8 @@ import type { Dados } from '@/types'
 import { criarClientes, criarEquipamentos, EMPRESA, SERVICOS, USUARIOS } from './pessoas'
 import { criarProdutos, MODELOS } from './produtos'
 import { criarComercial } from './comercial'
+import { criarCotacoes, criarFornecedores } from './compras'
+import { criarChamados } from './chamados'
 import { criarCompromissos } from './agenda'
 import { CHECKLIST_ATENDIMENTO } from './checklists'
 import { LOCAIS_CLIENTES, OS_CAMPO } from './locais'
@@ -37,5 +39,8 @@ export function criarDadosDemo(): Dados {
     leads,
     conversas,
     compromissos: criarCompromissos(),
+    fornecedores: criarFornecedores(),
+    cotacoes: criarCotacoes(),
+    chamados: criarChamados(),
   }
 }

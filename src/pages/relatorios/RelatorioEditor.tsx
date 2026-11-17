@@ -122,7 +122,7 @@ export default function RelatorioEditor() {
       <div className="nao-imprimir">
         <Link to={`/os/${os.id}`} className="mb-2 inline-flex min-h-10 items-center gap-1 text-sm text-ceu hover:underline"><ArrowLeft size={16} />OS {os.numero}</Link>
         <CabecalhoPagina
-          titulo="Relatório de manutenção"
+          titulo="Relatório de entrega"
           descricao={`OS ${os.numero} · ${cliente?.nome ?? ''}${modelo ? ` · ${nomeModelo(modelo.id, modelos)}` : ''}`}
           acoes={rascunho && (
             <>

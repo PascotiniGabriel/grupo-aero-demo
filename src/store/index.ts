@@ -31,7 +31,7 @@ export interface Estado extends Dados {
 const ROTULO: Record<string, string> = {
   clientes: 'Cliente', equipamentos: 'Drone', orcamentos: 'Orçamento', ordens: 'OS', notas: 'Nota fiscal', lancamentos: 'Lançamento',
   leads: 'Lead', conversas: 'Conversa', produtos: 'Peça', movimentacoes: 'Movimentação', servicos: 'Serviço', usuarios: 'Usuário', modelos: 'Modelo',
-  compromissos: 'Compromisso',
+  compromissos: 'Compromisso', fornecedores: 'Fornecedor', cotacoes: 'Cotação', chamados: 'Chamado',
 }
 
 type Qualquer = Record<string, unknown>
@@ -72,6 +72,17 @@ const storage: StateStorage = {
     try { localStorage.removeItem(CHAVE_ANTIGA) } catch { /* ignora */ }
   },
   removeItem: (nome) => idbStorage.removeItem(nome),
+}
+
+/** Dados salvos prevalecem; o que faltou (coleção nova) vem do seed. Itens novos do seed (orçamentos 2110/2111) entram sem apagar nada do usuário. */
+function mesclarComSeed(salvo: Partial<Estado>, atual: Estado): Estado {
+  const r = { ...atual, ...salvo } as Estado
+  const chaves = ['fornecedores', 'cotacoes', 'chamados', 'compromissos'] as const
+  for (const k of chaves) if (!Array.isArray(salvo[k])) (r as unknown as Qualquer)[k] = atual[k]
+  const orc = r.orcamentos ?? []
+  const novos = atual.orcamentos.filter((o) => ['orc-2110', 'orc-2111'].includes(o.id) && !orc.some((x) => x.id === o.id))
+  if (novos.length && orc.length) r.orcamentos = [...orc, ...novos]
+  return r
 }
 
 export const useStore = create<Estado>()(
@@ -129,11 +140,11 @@ export const useStore = create<Estado>()(
     }),
     {
       name: 'aero-demo-v2',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => storage),
-      // Estado antigo: mantém o que existe; coleções novas (ex.: compromissos) vêm do estado inicial no merge.
+      // Estado antigo: mantém o que existe; coleções novas (compromissos, fornecedores, cotações, chamados) vêm do estado inicial no merge.
       migrate: (persistido) => persistido as Estado,
-      merge: (persistido, atual) => ({ ...atual, ...((persistido as Partial<Estado>) ?? {}) }),
+      merge: (persistido, atual) => mesclarComSeed((persistido as Partial<Estado>) ?? {}, atual),
       // persiste só dados (sem funções)
       partialize: (s) => Object.fromEntries(Object.entries(s).filter(([, v]) => typeof v !== 'function')) as unknown as Estado,
     },

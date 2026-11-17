@@ -103,6 +103,7 @@ function FaixaDemo() {
 
 function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
   const naoLidas = useStore((s) => s.conversas.reduce((n, c) => n + c.naoLidas, 0))
+  const abertos = useStore((s) => s.chamados.filter((c) => c.status !== 'resolvido').length)
   const papel = usePapel()
   const grupos = gruposDoPapel(papel)
 
@@ -126,7 +127,7 @@ function BarraLateral({ aoFechar }: { aoFechar?: () => void }) {
             {g.titulo && <p className="px-3 pb-1 text-xs text-white/45">{g.titulo}</p>}
             <ul className="flex flex-col gap-0.5">
               {g.itens.map((item) => (
-                <li key={item.para}><LinkLateral item={item} contador={item.contador === 'conversas' ? naoLidas : 0} /></li>
+                <li key={item.para}><LinkLateral item={item} contador={item.contador === 'conversas' ? naoLidas : item.contador === 'chamados' ? abertos : 0} /></li>
               ))}
             </ul>
           </div>
@@ -163,7 +164,7 @@ function LinkLateral({ item, contador }: { item: ItemNav; contador: number }) {
       <I size={18} className="shrink-0" aria-hidden />
       <span className="flex-1 truncate">{item.rotulo}</span>
       {contador > 0 && (
-        <span className="num flex h-5 min-w-5 items-center justify-center rounded-full bg-lavoura px-1.5 text-xs font-semibold text-white" aria-label={`${contador} não lidas`}>
+        <span className="num flex h-5 min-w-5 items-center justify-center rounded-full bg-lavoura px-1.5 text-xs font-semibold text-white" aria-label={item.contador === 'chamados' ? `${contador} em aberto` : `${contador} não lidas`}>
           {contador}
         </span>
       )}
