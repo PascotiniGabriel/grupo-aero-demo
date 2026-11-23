@@ -6,7 +6,7 @@ export function porId<T extends { id: string }>(lista: T[], id: string | undefin
 }
 
 export function totalItens(itens: ItemComercial[]): number {
-  return itens.reduce((s, i) => s + i.quantidade * i.valorUnit, 0)
+  return itens.filter((i) => !i.opcional).reduce((s, i) => s + i.quantidade * i.valorUnit, 0)
 }
 
 export function totalOrcamento(o: Pick<Orcamento, 'itens' | 'desconto' | 'frete'>): number {

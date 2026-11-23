@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Camera, FileText, ListChecks, LayoutGrid, List, MapPin, Plus, Wrench } from 'lucide-react'
 import { useStore } from '@/store'
+import { SeloEmpresa, useFiltroEmpresa } from '@/lib/empresas'
 import { Button, CabecalhoPagina, CampoBusca, EstadoVazio, Painel, Select, SeloStatus, Tabela, cx, type Coluna } from '@/components/ui'
 import { dataCurta, normalizar } from '@/lib/format'
 import { progressoChecklist } from '@/lib/checklist'
@@ -12,7 +13,9 @@ import { NovaOSGaveta } from './NovaOSGaveta'
 import { useMoverOS } from './useMoverOS'
 
 export default function OSQuadro() {
-  const ordens = useStore((s) => s.ordens)
+  const todasOrdens = useStore((s) => s.ordens)
+  const { filtrar } = useFiltroEmpresa()
+  const ordens = useMemo(() => filtrar(todasOrdens), [todasOrdens, filtrar])
   const clientes = useStore((s) => s.clientes)
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
@@ -69,7 +72,7 @@ export default function OSQuadro() {
   }
 
   const colunasLista: Coluna<OrdemServico>[] = [
-    { id: 'num', titulo: 'OS', principal: true, valor: (o) => o.numero, render: (o) => <span className="num font-medium">#{o.numero}</span> },
+    { id: 'num', titulo: 'OS', principal: true, valor: (o) => o.numero, render: (o) => <span className="num inline-flex items-center gap-1.5 font-medium">#{o.numero}<SeloEmpresa empresaId={o.empresaId} /></span> },
     { id: 'cli', titulo: 'Cliente', valor: (o) => porId(clientes, o.clienteId)?.nome ?? '', render: (o) => porId(clientes, o.clienteId)?.nome ?? '-' },
     { id: 'drone', titulo: 'Drone', render: (o) => { const e = porId(equipamentos, o.equipamentoId); return e ? `${nomeModelo(e.modeloId, modelos)} · ${e.serial}` : '-' } },
     { id: 'onde', titulo: 'Atendimento', valor: (o) => o.atendimento ?? 'oficina', render: (o) => (o.atendimento === 'campo' ? <span className="inline-flex items-center gap-1 text-ceu"><MapPin size={14} />Campo</span> : 'Oficina'), ocultarMobile: true },
@@ -137,7 +140,7 @@ export default function OSQuadro() {
                           className={cx('rounded-campo border border-linha bg-papel p-3 lg:cursor-grab', arrastando === o.id && 'opacity-50')}>
                           <Link to={`/os/${o.id}`} className="block">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="num text-sm font-semibold">OS {o.numero}</span>
+                              <span className="num flex items-center gap-1.5 text-sm font-semibold">OS {o.numero}<SeloEmpresa empresaId={o.empresaId} /></span>
                               <span className="flex items-center gap-1.5 text-mata-suave">
                                 {o.atendimento === 'campo' && <span title="Atendimento em campo" className="inline-flex items-center gap-0.5 rounded-full bg-ceu-claro px-1.5 text-xs font-medium text-ceu-texto"><MapPin size={12} />Campo</span>}
                                 {progressoPorOS[o.id]?.total > 0 && <span title="Checklist do técnico" className="inline-flex items-center gap-0.5 text-xs"><ListChecks size={14} /><span className="num">{progressoPorOS[o.id].feitos}/{progressoPorOS[o.id].total}</span></span>}

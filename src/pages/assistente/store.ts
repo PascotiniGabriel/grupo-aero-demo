@@ -74,7 +74,9 @@ export const useAssistente = create<Estado>()((set, get) => ({
     const historico = anteriores.map((m) => ({ papel: m.papel, texto: m.texto }))
     set({ dono: usuario?.id, msgs: [...anteriores, { id: novoId('msg'), papel: 'usuario', texto: pergunta }], carregando: true })
     try {
-      const r = await responder(pergunta, historico, estado, { papel: usuario?.papel ?? 'Gestor', usuario })
+      const acessoIds = usuario?.empresaIds?.length ? usuario.empresaIds : estado.empresas.map((e) => e.id)
+      const vistas = estado.empresaSelecionada.filter((id) => acessoIds.includes(id))
+      const r = await responder(pergunta, historico, estado, { papel: usuario?.papel ?? 'Gestor', usuario, empresaIds: vistas.length ? vistas : acessoIds, acessoIds })
       set((s) => ({
         msgs: [...s.msgs, { id: novoId('msg'), papel: 'ia', texto: r.texto, links: r.links, fonte: r.fonte, continuacoes: r.continuacoes }],
       }))

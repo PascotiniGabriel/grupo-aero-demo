@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ClipboardCopy, FileText, Plus, Printer, Save, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, ClipboardCopy, FileText, Plus, Printer, Save, Send, Sparkles, Trash2 } from 'lucide-react'
 import type { Cotacao, Fornecedor, ItemCotacao, RespostaCotacao } from '@/types'
 import { Button, Campo, CabecalhoPagina, CampoBusca, IconButton, Input, Modal, Painel, Select, Selo, Textarea, cx, toast } from '@/components/ui'
 import { brl, normalizar } from '@/lib/format'
+import { lerPropostaFornecedor, type PropostaLida } from '@/lib/ai/compras'
 import { useStore } from '@/store'
 import { COR_STATUS, ROTULO_STATUS, lerNumero, novoId, totalDe } from './calculo'
 import { Comparativo } from './Comparativo'
 import { PedidoDoc, textoPedido } from './PedidoCotacao'
+import { SelectEmpresa, SeloEmpresa, empresaPadraoParaNovo, useEmpresaDoRegistro, useFiltroEmpresa } from '@/lib/empresas'
 
 const fone = (f: string) => {
   const d = f.replace(/\D/g, '')
@@ -21,20 +23,63 @@ function RespostaForm({ c, f, atual, aoSalvar }: { c: Cotacao; f: Fornecedor; at
   const [outras, setOutras] = useState(num(atual?.outrasDespesas ?? 0))
   const [prazo, setPrazo] = useState(String(atual?.prazoDias ?? f.prazoMedioDias))
   const [obs, setObs] = useState(atual?.observacao ?? '')
-  const parcial = { fornecedorId: f.id, precos: precos.map(lerNumero), frete: lerNumero(frete), outrasDespesas: lerNumero(outras), prazoDias: Number(prazo) || 0, observacao: obs.trim() || undefined, recebidaEm: atual?.recebidaEm ?? new Date().toISOString() }
+  const [pesos, setPesos] = useState(() => c.itens.map((_, i) => num(atual?.pesos?.[i] ?? 0)))
+  const [lendo, setLendo] = useState(false)
+  const [leitura, setLeitura] = useState<PropostaLida | null>(null)
+  const arquivoRef = useRef<HTMLInputElement>(null)
+
+  async function ler(arquivo: File | { exemplo: true }) {
+    setLendo(true)
+    try {
+      const r = await lerPropostaFornecedor(arquivo, c, f)
+      const novosPrecos = c.itens.map(() => ''); const novosPesos = c.itens.map(() => '')
+      for (const it of r.itens) { novosPrecos[it.indiceItem] = num(it.precoUnit); novosPesos[it.indiceItem] = num(it.pesoKg ?? 0) }
+      setPrecos(novosPrecos); setPesos(novosPesos); setFrete(num(r.frete)); setOutras(num(r.outrasDespesas)); setPrazo(String(r.prazoDias))
+      setObs(r.itens.map((x) => x.observacao).filter(Boolean).join('; '))
+      setLeitura(r)
+      toast.sucesso('Proposta lida. Confira os valores antes de salvar.')
+    } catch (e) { toast.erro(e instanceof Error ? e.message : 'Não consegui ler o documento.') }
+    finally { setLendo(false); if (arquivoRef.current) arquivoRef.current.value = '' }
+  }
+  const temPeso = pesos.some((p) => lerNumero(p) > 0)
+  const parcial = { fornecedorId: f.id, precos: precos.map(lerNumero), ...(temPeso ? { pesos: pesos.map(lerNumero) } : {}), frete: lerNumero(frete), outrasDespesas: lerNumero(outras), prazoDias: Number(prazo) || 0, observacao: obs.trim() || undefined, recebidaEm: atual?.recebidaEm ?? new Date().toISOString() }
 
   return (
     <Painel titulo={f.nome} acoes={atual ? <Selo cor="verde">Respondeu</Selo> : <Selo>Aguardando</Selo>}>
       <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 rounded-campo bg-nevoa p-3 sm:flex-row sm:items-center">
+          <p className="min-w-0 flex-1 text-sm text-mata-suave">Recebeu a proposta em PDF ou foto? A IA lê os itens, preços e pesos e preenche abaixo.</p>
+          <input ref={arquivoRef} type="file" accept="application/pdf,image/*" className="sr-only" aria-label="Arquivo da proposta do fornecedor"
+            onChange={(e) => { const a = e.target.files?.[0]; if (a) void ler(a) }} />
+          <Button className="ia-gradiente border-0" icone={<Sparkles size={16} />} loading={lendo} onClick={() => arquivoRef.current?.click()}>Ler PDF do fornecedor</Button>
+          <Button variante="secundario" disabled={lendo} onClick={() => void ler({ exemplo: true })}>Usar PDF de exemplo</Button>
+        </div>
+        {leitura && (
+          <div className="rounded-campo border border-linha p-3" role="status">
+            <p className="flex items-center gap-2 text-sm font-medium"><Sparkles size={14} className="text-ceu-texto" aria-hidden />A IA leu isto, confira antes de salvar{leitura.origem === 'simulada' && <span className="text-xs font-normal text-mata-suave">(leitura simulada)</span>}</p>
+            {leitura.naoEncontrados.length > 0 && (
+              <p className="mt-1 text-sm text-ambar-texto">Não encontrei no documento: {leitura.naoEncontrados.join(', ')}. Preencha à mão ou deixe em branco.</p>
+            )}
+          </div>
+        )}
+        <div className="grid grid-cols-[1fr_5.5rem_5rem] items-center gap-x-2 gap-y-2 text-xs text-mata-suave sm:grid-cols-[1fr_7rem_6rem]"><span>Item</span><span className="text-right">Preço unit.</span><span className="text-right">Peso (kg)</span></div>
         <ul className="flex flex-col gap-2">
-          {c.itens.map((it, i) => (
-            <li key={i} className="grid grid-cols-[1fr_7rem] items-center gap-2">
-              <span className="min-w-0 text-sm">{it.descricao} <span className="num text-xs text-mata-suave">× {it.quantidade}</span></span>
-              <Input inputMode="decimal" placeholder="Preço unit." aria-label={`Preço unitário de ${it.descricao}`} className="num text-right" value={precos[i]} onChange={(e) => setPrecos(precos.map((p, j) => (j === i ? e.target.value : p)))} />
-            </li>
-          ))}
+          {c.itens.map((it, i) => {
+            const lido = leitura?.itens.find((x) => x.indiceItem === i)
+            const faltou = leitura && !lido
+            return (
+              <li key={i} className="grid grid-cols-[1fr_5.5rem_5rem] items-center gap-2 sm:grid-cols-[1fr_7rem_6rem]">
+                <span className="min-w-0 text-sm">{it.descricao} <span className="num text-xs text-mata-suave">× {it.quantidade}</span>
+                  {lido && lido.descricaoLida && lido.descricaoLida !== it.descricao && <span className="block truncate text-xs text-mata-suave">Lido: {lido.descricaoLida}</span>}
+                  {faltou && <span className="block text-xs text-ambar-texto">Não encontrado no documento</span>}
+                </span>
+                <Input inputMode="decimal" placeholder="Preço" aria-label={`Preço unitário de ${it.descricao}`} className="num text-right" value={precos[i]} onChange={(e) => setPrecos(precos.map((p, j) => (j === i ? e.target.value : p)))} />
+                <Input inputMode="decimal" placeholder="Peso" aria-label={`Peso unitário em kg de ${it.descricao}`} className="num text-right" value={pesos[i]} onChange={(e) => setPesos(pesos.map((p, j) => (j === i ? e.target.value : p)))} />
+              </li>
+            )
+          })}
         </ul>
-        <p className="text-xs text-mata-suave">Deixe em branco o item que o fornecedor não tem.</p>
+        <p className="text-xs text-mata-suave">Deixe em branco o item que o fornecedor não tem. O peso é opcional.</p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Campo rotulo="Frete (R$)"><Input inputMode="decimal" className="num" value={frete} onChange={(e) => setFrete(e.target.value)} /></Campo>
           <Campo rotulo="Outras despesas (R$)"><Input inputMode="decimal" className="num" value={outras} onChange={(e) => setOutras(e.target.value)} /></Campo>
@@ -62,14 +107,15 @@ function CotacaoForm() {
   const fornecedores = useStore((s) => s.fornecedores)
   const produtos = useStore((s) => s.produtos)
   const ordens = useStore((s) => s.ordens)
-  const empresa = useStore((s) => s.empresa)
   const salvar = useStore((s) => s.salvar)
 
   const existente = cotacoes.find((x) => x.id === id)
   const [c, setC] = useState<Cotacao>(() => existente ?? {
     id: novoId('cot'), numero: Math.max(0, ...cotacoes.map((x) => x.numero)) + 1, titulo: '', criadaEm: new Date().toISOString(),
-    status: 'rascunho', itens: [], fornecedorIds: [], respostas: [],
+    status: 'rascunho', itens: [], fornecedorIds: [], respostas: [], empresaId: empresaPadraoParaNovo(),
   })
+  const empresa = useEmpresaDoRegistro(c.empresaId)
+  const { multiplas } = useFiltroEmpresa()
   const [q, setQ] = useState('')
   const [livre, setLivre] = useState('')
   const [previa, setPrevia] = useState<string | null | undefined>(undefined) // undefined = fechado; null = geral; string = fornecedor
@@ -101,7 +147,7 @@ function CotacaoForm() {
     edit({ itens: [...c.itens, it] })
   }
   const setQtd = (i: number, v: number) => edit({ itens: c.itens.map((it, j) => (j === i ? { ...it, quantidade: Math.max(1, v || 1) } : it)) })
-  const tirar = (i: number) => edit({ itens: c.itens.filter((_, j) => j !== i), respostas: c.respostas.map((r) => ({ ...r, precos: r.precos.filter((_, j) => j !== i) })) })
+  const tirar = (i: number) => edit({ itens: c.itens.filter((_, j) => j !== i), respostas: c.respostas.map((r) => ({ ...r, precos: r.precos.filter((_, j) => j !== i), ...(r.pesos ? { pesos: r.pesos.filter((_, j) => j !== i) } : {}) })) })
   const importarOS = () => {
     if (!os) return
     const novos = os.itens.filter((it) => it.tipo === 'peca' && !c.itens.some((x) => x.produtoId && x.produtoId === it.produtoId))
@@ -143,13 +189,14 @@ function CotacaoForm() {
       <div className="nao-imprimir flex flex-col gap-4 pb-24">
         <Link to="/compras" className="inline-flex min-h-10 items-center gap-1 text-sm text-ceu-texto"><ArrowLeft size={16} />Compras</Link>
         <CabecalhoPagina
-          titulo={<>Cotação {c.numero} <Selo cor={COR_STATUS[c.status]} className="align-middle">{ROTULO_STATUS[c.status]}</Selo></>}
+          titulo={<>Cotação {c.numero} <Selo cor={COR_STATUS[c.status]} className="align-middle">{ROTULO_STATUS[c.status]}</Selo> <SeloEmpresa empresaId={c.empresaId} className="align-middle" /></>}
           descricao={os ? `Para a OS ${os.numero}` : 'Lista de peças para pedir preço aos fornecedores'}
           acoes={<Button icone={<Save size={16} />} onClick={() => { if (!c.titulo.trim()) { toast.erro('Dê um título à cotação'); return } gravar(c, 'Cotação salva') }}>Salvar</Button>}
         />
 
         <Painel titulo={sec(1, 'Itens')}>
           <div className="flex flex-col gap-3">
+            {multiplas && !existente && <Campo rotulo="Empresa que compra"><SelectEmpresa valor={c.empresaId ?? empresaPadraoParaNovo()} aoMudar={(v) => edit({ empresaId: v })} /></Campo>}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo rotulo="Título" obrigatorio><Input value={c.titulo} disabled={bloqueada} placeholder="Ex.: Hélices e bicos do T40" onChange={(e) => edit({ titulo: e.target.value })} /></Campo>
               <Campo rotulo="Ordem de serviço (opcional)">

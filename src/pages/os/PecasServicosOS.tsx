@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { FileText, Plus, QrCode, Trash2 } from 'lucide-react'
 import { novoId, useStore } from '@/store'
+import { EMPRESA_PRINCIPAL_ID, estoqueDe, outraEmpresaTem } from '@/lib/empresas'
 import { Button, CampoBusca, Confirmar, EstadoVazio, IconButton, Painel, Select, Selo, cx, toast } from '@/components/ui'
 import { useLeitorQR, localizarCodigo } from '@/components/qr/LeitorQR'
 import { buscarProdutos } from '@/lib/ai'
@@ -13,6 +14,9 @@ import type { ItemComercial, OrdemServico, Produto, Servico } from '@/types'
 
 export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: string | undefined }) {
   const produtos = useStore((s) => s.produtos)
+  const empresasGrupo = useStore((s) => s.empresas)
+  const idsOS = useMemo(() => [os.empresaId ?? EMPRESA_PRINCIPAL_ID], [os.empresaId])
+  const avisoTransf = (p: Produto) => { const o = outraEmpresaTem(p, idsOS, empresasGrupo)[0]; return o ? <Link to={`/estoque/${p.id}`} onClick={(e) => e.stopPropagation()} className="text-xs text-ceu-texto underline">{o.empresa.cidade} tem {o.qtd} — pedir transferência</Link> : null }
   const servicos = useStore((s) => s.servicos)
   const usuarios = useStore((s) => s.usuarios)
   const usuarioId = useStore((s) => s.usuarioAtualId)
@@ -105,10 +109,11 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
                   <button type="button" onClick={() => adicionarPeca(p)} className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-nevoa">
                     <span className="min-w-0"><span className="block truncate text-sm font-medium">{p.nome}</span><span className="serial text-xs text-mata-suave">{p.sku}</span></span>
                     <span className="flex shrink-0 items-center gap-3 text-sm">
-                      <Selo cor={p.estoque === 0 ? 'vermelho' : p.estoque <= p.estoqueMinimo ? 'ambar' : 'verde'}>{p.estoque} em estoque</Selo>
+                      <Selo cor={estoqueDe(p, idsOS) === 0 ? 'vermelho' : estoqueDe(p, idsOS) <= p.estoqueMinimo ? 'ambar' : 'verde'}>{estoqueDe(p, idsOS)} em estoque</Selo>
                       <span className="num">{brl(p.preco)}</span><Plus size={16} />
                     </span>
                   </button>
+                  {avisoTransf(p) && <div className="px-3 pb-2">{avisoTransf(p)}</div>}
                 </li>
               ))}
             </ul>
@@ -135,7 +140,8 @@ export function PecasServicosOS({ os, modeloId }: { os: OrdemServico; modeloId: 
                     <p className="text-sm font-medium">{i.descricao}</p>
                     <p className="text-xs text-mata-suave">
                       {i.tipo === 'peca' ? 'Peça' : 'Serviço'}
-                      {p && <span className={cx('ml-2', p.estoque < i.quantidade && 'font-semibold text-barro-texto')}> · {p.estoque} em estoque{p.estoque < i.quantidade ? ' (insuficiente)' : ''}</span>}
+                      {p && <span className={cx('ml-2', estoqueDe(p, idsOS) < i.quantidade && 'font-semibold text-barro-texto')}> · {estoqueDe(p, idsOS)} em estoque{estoqueDe(p, idsOS) < i.quantidade ? ' (insuficiente)' : ''}</span>}
+                      {p && avisoTransf(p) && <span className="ml-2">{avisoTransf(p)}</span>}
                     </p>
                   </div>
                   <label className="flex items-center gap-1.5 text-xs text-mata-suave">Qtd.

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Clock, Pencil, Play, CheckCircle2, Wrench, User } from 'lucide-react'
 import { useStore } from '@/store'
+import { SeloEmpresa } from '@/lib/empresas'
 import { Button, Confirmar, Selo, cx, toast } from '@/components/ui'
 import type { Compromisso } from '@/types'
 import { BotoesLocal, DadosLocal } from '@/pages/os/LocalUI'
@@ -38,7 +39,7 @@ export function CartaoCompromisso({ c, destaque, rotuloDestaque, mostrarTecnico,
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="num flex items-center gap-1.5 text-sm font-semibold"><Clock size={15} aria-hidden />{faixaHora(c)}</p>
-          <h3 className="mt-0.5 text-base">{c.titulo}</h3>
+          <h3 className="mt-0.5 flex items-center gap-1.5 text-base">{c.titulo}<SeloEmpresa empresaId={c.empresaId} /></h3>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Selo>{ROTULO_TIPO[c.tipo]}</Selo>

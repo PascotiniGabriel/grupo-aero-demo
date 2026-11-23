@@ -2,7 +2,7 @@ import { Check, Trophy } from 'lucide-react'
 import type { Cotacao, Fornecedor } from '@/types'
 import { Button, Painel, Selo, cx } from '@/components/ui'
 import { brl } from '@/lib/format'
-import { faltantes, melhorPorItem, melhorResposta, menorPrecoItem, produtosDe, totalDe } from './calculo'
+import { faltantes, melhorPorItem, melhorResposta, menorPrecoItem, pesoTotalDe, produtosDe, totalDe } from './calculo'
 
 export function Comparativo({ c, fornecedores, aoEscolher }: { c: Cotacao; fornecedores: Fornecedor[]; aoEscolher: (fornecedorId: string) => void }) {
   const resps = c.respostas
@@ -55,6 +55,9 @@ export function Comparativo({ c, fornecedores, aoEscolher }: { c: Cotacao; forne
               <td className="px-3 py-2 font-semibold">Total</td>
               {resps.map((r) => <td key={r.fornecedorId} className={cx(celula, 'font-semibold', destaque(melhor?.fornecedorId === r.fornecedorId))}>{brl(totalDe(c, r))}</td>)}
             </tr>
+            {resps.some((r) => pesoTotalDe(c, r) > 0) && (
+              <tr className="border-b border-linha"><td className="px-3 py-2 font-medium">Peso total</td>{resps.map((r) => <td key={r.fornecedorId} className={celula}>{pesoTotalDe(c, r) > 0 ? `${pesoTotalDe(c, r).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kg` : <span className="text-mata-suave">não informado</span>}</td>)}</tr>
+            )}
             <tr className="border-b border-linha"><td className="px-3 py-2 font-medium">Prazo</td>{resps.map((r) => <td key={r.fornecedorId} className={celula}>{r.prazoDias} dias</td>)}</tr>
             <tr>
               <td className="px-3 py-2 text-xs text-mata-suave">{resps.some((r) => faltantes(c, r) > 0) ? 'Totais de quem não cotou tudo estão incompletos.' : ''}</td>

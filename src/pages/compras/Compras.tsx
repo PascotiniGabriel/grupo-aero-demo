@@ -5,6 +5,7 @@ import type { Fornecedor } from '@/types'
 import { Abas, Button, Campo, CabecalhoPagina, Confirmar, EstadoVazio, IconButton, Input, Modal, Painel, Selo, toast } from '@/components/ui'
 import { brl } from '@/lib/format'
 import { useStore } from '@/store'
+import { SeloEmpresa, empresaPadraoParaNovo, estoqueDe, useFiltroEmpresa } from '@/lib/empresas'
 import { COR_STATUS, ROTULO_STATUS, melhorResposta, novoId, totalDe } from './calculo'
 
 const CATEGORIAS = ['Propulsão', 'Pulverização', 'Estrutura', 'Eletrônica', 'Energia', 'Sensores', 'Acessórios', 'Drones']
@@ -12,7 +13,9 @@ const VAZIO: Fornecedor = { id: '', nome: '', cidade: '', contato: '', fone: '',
 
 export default function Compras() {
   const [aba, setAba] = useState('cotacoes')
-  const cotacoes = useStore((s) => s.cotacoes)
+  const todasCotacoes = useStore((s) => s.cotacoes)
+  const { ids, filtrar } = useFiltroEmpresa()
+  const cotacoes = useMemo(() => filtrar(todasCotacoes), [todasCotacoes, filtrar])
   const fornecedores = useStore((s) => s.fornecedores)
   const produtos = useStore((s) => s.produtos)
   const ordens = useStore((s) => s.ordens)
@@ -23,15 +26,16 @@ export default function Compras() {
   const [apagar, setApagar] = useState<Fornecedor | null>(null)
 
   const lista = useMemo(() => [...cotacoes].sort((a, b) => b.numero - a.numero), [cotacoes])
-  const abaixo = useMemo(() => produtos.filter((p) => p.tipo !== 'drone' && p.estoque < p.estoqueMinimo), [produtos])
+  const abaixo = useMemo(() => produtos.filter((p) => p.tipo !== 'drone' && estoqueDe(p, ids) < p.estoqueMinimo), [produtos, ids])
 
   function cotarAbaixoDoMinimo() {
-    const numero = Math.max(0, ...cotacoes.map((c) => c.numero)) + 1
+    const numero = Math.max(0, ...todasCotacoes.map((c) => c.numero)) + 1
     const cats = new Set(abaixo.map((p) => p.categoria as string))
     const id = novoId('cot')
     salvar('cotacoes', {
       id, numero, titulo: 'Reposição de peças abaixo do mínimo', criadaEm: new Date().toISOString(), status: 'rascunho',
-      itens: abaixo.map((p) => ({ produtoId: p.id, descricao: p.nome, quantidade: Math.max(1, p.estoqueMinimo * 2 - p.estoque) })),
+      itens: abaixo.map((p) => ({ produtoId: p.id, descricao: p.nome, quantidade: Math.max(1, p.estoqueMinimo * 2 - estoqueDe(p, ids)) })),
+      empresaId: empresaPadraoParaNovo(),
       fornecedorIds: fornecedores.filter((f) => f.categorias.some((c) => cats.has(c))).map((f) => f.id), respostas: [],
     })
     toast.sucesso('Cotação criada com as peças abaixo do mínimo')
@@ -75,7 +79,7 @@ export default function Compras() {
                       <Link to={`/compras/${c.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-nevoa">
                         <span className="num w-10 shrink-0 text-sm text-mata-suave">#{c.numero}</span>
                         <span className="min-w-0 flex-1 basis-48">
-                          <span className="block truncate font-medium">{c.titulo}</span>
+                          <span className="block truncate font-medium">{c.titulo} <SeloEmpresa empresaId={c.empresaId} className="ml-1 align-middle" /></span>
                           <span className="text-xs text-mata-suave">{os ? `Para a OS ${os.numero} · ` : ''}{c.itens.length} {c.itens.length === 1 ? 'item' : 'itens'} · {c.fornecedorIds.length} fornecedores</span>
                         </span>
                         {melhor && <span className="num text-sm">Melhor: <strong>{brl(totalDe(c, melhor))}</strong></span>}

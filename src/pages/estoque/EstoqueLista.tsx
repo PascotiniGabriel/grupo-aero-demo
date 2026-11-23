@@ -5,6 +5,7 @@ import { Button, CabecalhoPagina, CampoBusca, ChipsModelos, Indicador, Painel, S
 import { useLeitorQR } from '@/components/qr/LeitorQR'
 import { useStore } from '@/store'
 import { saidasPorProduto } from '@/store/selectors'
+import { estoqueDe, outraEmpresaTem, useFiltroEmpresa } from '@/lib/empresas'
 import { brl, normalizar, numero, peso } from '@/lib/format'
 import type { Produto } from '@/types'
 import { CATEGORIAS, ehExclusiva, situacaoEstoque } from './comum'
@@ -16,7 +17,11 @@ type Situacao = 'todas' | 'abaixo' | 'zerado' | 'parado'
 export default function EstoqueLista() {
   const navegar = useNavigate()
   const [params, setParams] = useSearchParams()
-  const produtos = useStore((s) => s.produtos)
+  const produtosTodos = useStore((s) => s.produtos)
+  const todasEmpresas = useStore((s) => s.empresas)
+  const { ids, empresas, multiplas } = useFiltroEmpresa()
+  // `estoque` aqui = quantidade nas empresas em vista (o total do grupo fica em produtosTodos).
+  const produtos = useMemo(() => produtosTodos.map((pr) => ({ ...pr, estoque: estoqueDe(pr, ids) })), [produtosTodos, ids])
   const modelos = useStore((s) => s.modelos)
   const movs = useStore((s) => s.movimentacoes)
   const leitor = useLeitorQR()
@@ -89,7 +94,9 @@ export default function EstoqueLista() {
         return (
           <span className="inline-flex flex-col items-end gap-0.5">
             <span className={cx('num font-semibold', s === 'zerado' && 'text-barro-texto', s === 'abaixo' && 'text-ambar-texto')}>{numero(p.estoque)}</span>
+            {multiplas && <span className="num text-xs text-mata-suave">{empresas.map((e) => `${e.nomeCurto} ${numero(p.estoquePorEmpresa?.[e.id] ?? 0)}`).join(' · ')}</span>}
             <span className="text-xs text-mata-suave">mín. {numero(p.estoqueMinimo)}</span>
+            {s === 'zerado' && outraEmpresaTem(p, ids, todasEmpresas).map((o) => <Selo key={o.empresa.id} cor="azul">{o.empresa.cidade} tem {numero(o.qtd)}</Selo>)}
             {s === 'zerado' && <Selo cor="vermelho">Zerado</Selo>}
             {s === 'abaixo' && <Selo cor="ambar">Abaixo do mínimo</Selo>}
           </span>

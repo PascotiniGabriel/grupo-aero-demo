@@ -9,6 +9,7 @@ import { nomeModelo, porId } from '@/store/selectors'
 import { gerarRelatorio, reescreverSecao, type ContextoRelatorio, type SecaoRelatorio } from '@/lib/ai/relatorio'
 import { GerenciadorFotos, useAdicionarFotos } from '@/pages/os/FotosOS'
 import { DocumentoRelatorio } from './DocumentoRelatorio'
+import { useEmpresaDoRegistro } from '@/lib/empresas'
 import type { RelatorioOS } from '@/types'
 
 const EXEMPLOS = [
@@ -37,10 +38,10 @@ export default function RelatorioEditor() {
   const modelos = useStore((s) => s.modelos)
   const produtos = useStore((s) => s.produtos)
   const servicos = useStore((s) => s.servicos)
-  const empresa = useStore((s) => s.empresa)
   const salvar = useStore((s) => s.salvar)
 
   const os = ordens.find((o) => o.id === osId)
+  const empresa = useEmpresaDoRegistro(os?.empresaId)
   const { adicionar } = useAdicionarFotos(osId ?? '')
   const [notas, setNotas] = useState(os?.relatorio?.notasTecnico ?? '')
   const [rascunho, setRascunho] = useState<RelatorioOS | null>(os?.relatorio ?? null)

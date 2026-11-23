@@ -19,3 +19,4 @@ export { SeloStatus, rotuloStatus, statusLancamento, type TipoStatus } from './S
 export { SeloIA } from './SeloIA'
 export { Confirmar } from './Confirmar'
 export { Avatar } from './Avatar'
+export { BuscaCliente } from './BuscaCliente'

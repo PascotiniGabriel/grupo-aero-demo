@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import type { Equipamento, Produto } from '@/types'
 import { useStore } from '@/store'
+import { empresaPadraoParaNovo, estoqueDe } from '@/lib/empresas'
 import { nomeModelo } from '@/store/selectors'
 import { brl, numero } from '@/lib/format'
 import { Abas, Button, ChipsModelos, Input, Modal, Selo, cx, toast } from '@/components/ui'
@@ -355,14 +356,16 @@ function ResultadoProduto({ produto, serial, ir }: { produto: Produto; serial?: 
   const [mov, setMov] = useState<'entrada' | 'saida' | null>(null)
   const [qtd, setQtd] = useState(1)
 
-  const zerado = produto.estoque <= 0
-  const baixo = !zerado && produto.estoque <= produto.estoqueMinimo
-  const maximo = mov === 'saida' ? produto.estoque : 9999
+  const emp = empresaPadraoParaNovo()
+  const qtdEmp = estoqueDe(produto, [emp])
+  const zerado = qtdEmp <= 0
+  const baixo = !zerado && qtdEmp <= produto.estoqueMinimo
+  const maximo = mov === 'saida' ? qtdEmp : 9999
 
   const confirmar = () => {
     if (!mov) return
-    if (mov === 'saida' && qtd > produto.estoque) { toast.erro(`Só há ${numero(produto.estoque)} em estoque.`); return }
-    movimentarEstoque({ produtoId: produto.id, tipo: mov, quantidade: qtd, origem: 'Leitura de QR' })
+    if (mov === 'saida' && qtd > qtdEmp) { toast.erro(`Só há ${numero(qtdEmp)} em estoque.`); return }
+    movimentarEstoque({ produtoId: produto.id, tipo: mov, quantidade: qtd, origem: 'Leitura de QR', empresaId: emp })
     toast.sucesso(mov === 'entrada' ? `Entrada de ${numero(qtd)} un. registrada` : `Saída de ${numero(qtd)} un. registrada`)
     setMov(null)
     setQtd(1)
@@ -377,7 +380,7 @@ function ResultadoProduto({ produto, serial, ir }: { produto: Produto; serial?: 
             <p className="serial mt-0.5 text-xs text-mata-suave">{produto.sku}{serial ? `, serial ${serial}` : ''}</p>
           </div>
           <Selo cor={zerado ? 'vermelho' : baixo ? 'ambar' : 'verde'}>
-            {zerado ? 'Sem estoque' : `${numero(produto.estoque)} em estoque`}
+            {zerado ? 'Sem estoque' : `${numero(qtdEmp)} em estoque`}
           </Selo>
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

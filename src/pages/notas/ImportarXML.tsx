@@ -4,6 +4,7 @@ import { Button, CampoBusca, Gaveta, Input, Select, Selo, cx, toast } from '@/co
 import { useStore, novoId } from '@/store'
 import { porId } from '@/store/selectors'
 import { brl, normalizar, numero } from '@/lib/format'
+import { SelectEmpresa, empresaPadraoParaNovo, useEmpresasAcessiveis } from '@/lib/empresas'
 import type { CategoriaProduto, NotaFiscal, Produto } from '@/types'
 import { lerNFe, somarDias, xmlExemplo, type NotaXML } from './xml'
 
@@ -21,6 +22,8 @@ export default function ImportarXML({ aoFechar }: { aoFechar: () => void }) {
   const produtos = useStore((s) => s.produtos)
   const salvar = useStore((s) => s.salvar)
   const movimentar = useStore((s) => s.movimentarEstoque)
+  const acessiveis = useEmpresasAcessiveis()
+  const [empresaId, setEmpresaId] = useState(() => empresaPadraoParaNovo())
   const arquivo = useRef<HTMLInputElement>(null)
   const [nota, setNota] = useState<NotaXML | null>(null)
   const [linhas, setLinhas] = useState<Linha[]>([])
@@ -38,6 +41,9 @@ export default function ImportarXML({ aoFechar }: { aoFechar: () => void }) {
           novo: { nome: i.xProd, ncm: i.ncm, custo: String(i.vUn).replace('.', ','), pesoG: String(pesoUnitG), categoria: 'Propulsão' },
         }
       }))
+      const dig = (v: string) => v.replace(/\D/g, '')
+      const dest = n.destCnpj ? acessiveis.find((e) => dig(e.cnpj) === dig(n.destCnpj)) : undefined
+      if (dest) setEmpresaId(dest.id)
       setNota(n)
     } catch (e) {
       toast.erro(e instanceof Error ? e.message : 'Não consegui ler este arquivo.')
@@ -74,18 +80,18 @@ export default function ImportarXML({ aoFechar }: { aoFechar: () => void }) {
         }
         salvar('produtos', p); id = p.id; nome = p.nome
       } else nome = porId(produtos, id)?.nome ?? l.xProd
-      movimentar({ produtoId: id, tipo: 'entrada', quantidade: l.qtd, origem, valorUnit: l.vUn })
+      movimentar({ produtoId: id, tipo: 'entrada', quantidade: l.qtd, origem, valorUnit: l.vUn, empresaId })
       entradas.push({ nome, qtd: l.qtd, novo: l.produtoId === null })
       itensNota.push({ descricao: nome, ncm: l.novo.ncm, quantidade: l.qtd, valorUnit: l.vUn, produtoId: id })
     })
     const valor = Math.round(total * 100) / 100
     salvar('notas', {
       id: novoId('nf'), numero: nota.numero, serie: nota.serie, tipo: 'entrada', modelo: 'NF-e', natureza: 'Compra para revenda',
-      emitente: nota.emitente, data: new Date().toISOString(), valor, status: 'autorizada', chave: nota.chave, itens: itensNota, origem: 'Importada de XML',
+      emitente: nota.emitente, data: new Date().toISOString(), valor, status: 'autorizada', chave: nota.chave, itens: itensNota, origem: 'Importada de XML', empresaId,
     })
     salvar('lancamentos', {
       id: novoId('lan'), tipo: 'pagar', descricao: `Compra de peças, ${nota.emitente}`, categoria: 'Fornecedores', valor,
-      vencimento: somarDias(30), forma: 'Boleto', origem: origem,
+      vencimento: somarDias(30), forma: 'Boleto', origem: origem, empresaId,
     })
     setResumo({ entradas, total: valor, numero: nota.numero, emitente: nota.emitente })
     toast.sucesso('Entrada no estoque concluída')
@@ -135,6 +141,9 @@ export default function ImportarXML({ aoFechar }: { aoFechar: () => void }) {
             <p className="mt-0.5 text-mata-suave">NF {nota.numero} · série {nota.serie}{nota.pesoKg > 0 && <> · peso {numero(nota.pesoKg, 3)} kg</>} · <span className="num">{brl(total)}</span></p>
             <p className="mt-0.5 text-mata-suave">{linhas.length - qtdNovos} itens já cadastrados e {qtdNovos} para cadastrar como peça nova.</p>
           </div>
+          {acessiveis.length > 1 && (
+            <label className="block text-sm">Empresa que recebe o estoque<SelectEmpresa valor={empresaId} aoMudar={setEmpresaId} className="mt-1" /></label>
+          )}
           <ul className="space-y-3">
             {linhas.map((l, i) => {
               const casado = l.produtoId ? porId(produtos, l.produtoId) : undefined

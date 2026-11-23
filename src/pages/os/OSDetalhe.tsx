@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, CalendarPlus, Check, FileText, MapPin, Sparkles, Wrench } from 'lucide-react'
 import { useStore } from '@/store'
+import { useEmpresaGrupo } from '@/lib/empresas'
 import { Abas, Button, CabecalhoPagina, EstadoVazio, Gaveta, Painel, Selo, SeloStatus, cx, toast } from '@/components/ui'
 import { dataCurta, dataHora } from '@/lib/format'
 import { nomeModelo, porId } from '@/store/selectors'
@@ -35,6 +36,7 @@ export default function OSDetalhe() {
   const [aba, setAba] = useState('resumo')
 
   const os = ordens.find((o) => o.id === id)
+  const empresaOS = useEmpresaGrupo(os?.empresaId)
   const [diag, setDiag] = useState(os?.diagnostico ?? '')
   useEffect(() => { setDiag(os?.diagnostico ?? '') }, [os?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -98,7 +100,7 @@ export default function OSDetalhe() {
       <Link to="/os" className="mb-2 inline-flex min-h-10 items-center gap-1 text-sm text-ceu hover:underline"><ArrowLeft size={16} />Ordens de serviço</Link>
       <CabecalhoPagina
         titulo={`OS ${os.numero}`}
-        descricao={cliente ? `${cliente.nome} · ${eq ? `${nomeModelo(eq.modeloId, modelos)} ${eq.serial}` : ''}` : undefined}
+        descricao={`${empresaOS ? `${empresaOS.nome} (${empresaOS.cidade}-${empresaOS.uf}) · ` : ''}${cliente ? `${cliente.nome} · ${eq ? `${nomeModelo(eq.modeloId, modelos)} ${eq.serial}` : ''}` : ''}`}
         acoes={<>{campo && <Selo cor="azul" icone={<MapPin size={12} />}>Campo</Selo>}<SeloStatus tipo="os" status={os.status} /></>}
       />
 

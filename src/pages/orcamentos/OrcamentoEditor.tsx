@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { SelectEmpresa, empresaPadraoParaNovo, estoqueDe, outraEmpresaTem, useEmpresaDoRegistro } from '@/lib/empresas'
 import { AlertTriangle, ArrowLeft, Check, Copy, MessageCircle, Printer, Save, Send, Trash2, UserPlus, X } from 'lucide-react'
 import type { Cliente, ItemComercial, Orcamento, StatusOrcamento } from '@/types'
 import {
@@ -28,6 +29,7 @@ const ETAPAS_IA = ['Entendendo o pedido', 'Procurando as peças no estoque', 'Co
 interface Pendente { id: string; texto: string }
 
 interface Rascunho {
+  empresaId: string
   clienteId: string
   equipamentoId: string
   itens: ItemComercial[]
@@ -73,7 +75,6 @@ function Editor({ id }: { id?: string }) {
   const modelos = useStore((s) => s.modelos)
   const usuarios = useStore((s) => s.usuarios)
   const leads = useStore((s) => s.leads)
-  const empresa = useStore((s) => s.empresa)
   const usuarioAtualId = useStore((s) => s.usuarioAtualId)
   const orcamentos = useStore((s) => s.orcamentos)
   const salvarNaStore = useStore((s) => s.salvar)
@@ -89,7 +90,7 @@ function Editor({ id }: { id?: string }) {
     if (existente) {
       const eqs = equipamentos.filter((e) => e.clienteId === existente.clienteId)
       return {
-        clienteId: existente.clienteId, equipamentoId: eqs.length === 1 ? eqs[0].id : '', itens: existente.itens.map((i) => ({ ...i })),
+        empresaId: existente.empresaId ?? empresaPadraoParaNovo(), clienteId: existente.clienteId, equipamentoId: eqs.length === 1 ? eqs[0].id : '', itens: existente.itens.map((i) => ({ ...i })),
         descontoTipo: 'valor', descontoEntrada: existente.desconto, frete: existente.frete, formaPagamento: existente.formaPagamento,
         prazoEntrega: existente.prazoEntrega, validade: paraInput(existente.validade), vendedor: existente.vendedor,
         observacoes: existente.observacoes, criadoPorIA: !!existente.criadoPorIA,
@@ -99,12 +100,14 @@ function Editor({ id }: { id?: string }) {
       }
     }
     return {
-      clienteId: '', equipamentoId: '', itens: [], descontoTipo: 'valor', descontoEntrada: 0, frete: 0, formaPagamento: FORMAS_PAGAMENTO[0],
+      empresaId: empresaPadraoParaNovo(), clienteId: '', equipamentoId: '', itens: [], descontoTipo: 'valor', descontoEntrada: 0, frete: 0, formaPagamento: FORMAS_PAGAMENTO[0],
       prazoEntrega: PRAZOS_ENTREGA[1], validade: paraInput(diasAFrente(15)), vendedor: vendedorPadrao,
       observacoes: 'Valores sujeitos a confirmação de estoque. Garantia de 90 dias para peças e serviços.', criadoPorIA: false,
       tipo: 'pecas', laudo: { ...LAUDO_VAZIO }, pulv: pulvVazio(), modeloPulv: '',
     }
   })
+  const empresa = useEmpresaDoRegistro(rasc.empresaId)
+  const empresasGrupo = useStore((s) => s.empresas)
   const [status, setStatus] = useState<StatusOrcamento>(existente?.status ?? 'rascunho')
   const [numero, setNumero] = useState<number | null>(existente?.numero ?? null)
   const [salvoId, setSalvoId] = useState<string | null>(existente?.id ?? null)
@@ -137,15 +140,20 @@ function Editor({ id }: { id?: string }) {
   const subtotal = totalItens(rasc.itens)
   const descontoReais = Math.min(subtotal, rasc.descontoTipo === 'pct' ? Math.round(subtotal * rasc.descontoEntrada) / 100 : rasc.descontoEntrada || 0)
   const total = Math.max(0, subtotal - descontoReais + (rasc.frete || 0))
+  const totalOpcionais = rasc.itens.filter((i) => i.opcional).reduce((t, i) => t + i.quantidade * i.valorUnit, 0)
   const pesoG = pesoItens(rasc.itens, produtos)
   const faltas = useMemo(() => {
     if (status === 'aprovado') return []
     return rasc.itens.flatMap((i) => {
       const p = i.produtoId ? produtos.find((x) => x.id === i.produtoId) : undefined
-      return p && p.estoque < i.quantidade ? [{ item: i, disponivel: p.estoque }] : []
+      if (!p) return []
+      const disponivel = estoqueDe(p, [rasc.empresaId])
+      if (disponivel >= i.quantidade) return []
+      const outras = outraEmpresaTem(p, [rasc.empresaId], empresasGrupo)
+      return [{ item: i, disponivel, produtoId: p.id, outras }]
     })
-  }, [rasc.itens, produtos, status])
-  const dadosIA = { produtos, servicos, clientes, equipamentos, modelos }
+  }, [rasc.itens, rasc.empresaId, produtos, status, empresasGrupo])
+  const dadosIA = { produtos, servicos, clientes, equipamentos, modelos, empresaId: rasc.empresaId, empresas: empresasGrupo }
   const mostrarNumero = numero ?? numeroProvisorio.current
 
   /* ------------------------------------------------------------ itens */
@@ -245,6 +253,8 @@ function Editor({ id }: { id?: string }) {
     iniciou.current = true
     const tp = params.get('tipo')
     if (tp === 'manutencao' || tp === 'pulverizacao' || tp === 'drone') mudarTipo(tp)
+    const emp = params.get('empresa')
+    if (emp && empresasGrupo.some((e) => e.id === emp)) atualizar({ empresaId: emp })
     const cli = params.get('cliente')
     if (cli && clientes.some((c) => c.id === cli)) {
       const eqs = equipamentos.filter((e) => e.clienteId === cli)
@@ -259,7 +269,7 @@ function Editor({ id }: { id?: string }) {
       const r = interpretarSimulado(lead.interesse, dadosIA)
       const nota = `Contato do funil: ${lead.nome} (${lead.cidade}/${lead.uf}), interesse: ${lead.interesse}.`
       setRasc((p) => ({
-        ...p, clienteId: achado?.id ?? p.clienteId, vendedor: usuarios.find((u) => u.nome === lead.responsavel)?.nome ?? p.vendedor,
+        ...p, empresaId: lead.empresaId ?? p.empresaId, clienteId: achado?.id ?? p.clienteId, vendedor: usuarios.find((u) => u.nome === lead.responsavel)?.nome ?? p.vendedor,
         itens: [...p.itens, ...r.itens], observacoes: `${p.observacoes} ${nota}`.trim(),
       }))
       if (!achado) setLeadSemCadastro(lead.id)
@@ -284,7 +294,7 @@ function Editor({ id }: { id?: string }) {
 
   /* ------------------------------------------------------------ salvar e ações */
   const montar = (st: StatusOrcamento, num: number): Orcamento => ({
-    id: salvoId ?? existente?.id ?? idNovo.current, numero: num, clienteId: rasc.clienteId, data: existente?.data ?? dataCriacao.current,
+    id: salvoId ?? existente?.id ?? idNovo.current, empresaId: rasc.empresaId, numero: num, clienteId: rasc.clienteId, data: existente?.data ?? dataCriacao.current,
     validade: deInput(rasc.validade), status: st, itens: rasc.itens, desconto: descontoReais, frete: rasc.frete || 0,
     formaPagamento: rasc.formaPagamento, prazoEntrega: rasc.prazoEntrega, observacoes: rasc.observacoes, vendedor: rasc.vendedor,
     osId: rasc.osId, criadoPorIA: rasc.criadoPorIA || undefined,
@@ -315,7 +325,7 @@ function Editor({ id }: { id?: string }) {
     const o = persistir('aprovado', null)
     if (!o) { setConfirmar(null); return }
     if (status !== 'aprovado') {
-      for (const i of o.itens) if (i.produtoId) movimentar({ produtoId: i.produtoId, tipo: 'saida', quantidade: i.quantidade, origem: `Orçamento ${o.numero}`, valorUnit: i.valorUnit })
+      for (const i of o.itens) if (i.produtoId && !i.opcional) movimentar({ produtoId: i.produtoId, tipo: 'saida', quantidade: i.quantidade, empresaId: o.empresaId, origem: `Orçamento ${o.numero}`, valorUnit: i.valorUnit })
     }
     toast.sucesso(`Orçamento ${o.numero} aprovado e estoque atualizado`)
     setConfirmar(null)
@@ -411,6 +421,7 @@ function Editor({ id }: { id?: string }) {
                     <Button tamanho="sm" variante="secundario" icone={<UserPlus size={16} />} onClick={cadastrarLead}>Cadastrar como cliente</Button>
                   </div>
                 )}
+                <Campo rotulo="Empresa" ajuda="Empresa do grupo que emite o orçamento e dá baixa no estoque."><SelectEmpresa valor={rasc.empresaId} aoMudar={(v) => atualizar({ empresaId: v })} /></Campo>
                 <SeletorCliente clientes={clientes} valor={rasc.clienteId} aoMudar={(v) => atualizar({ clienteId: v, equipamentoId: '' })} />
                 {cliente && (
                   <Campo rotulo="Drone do cliente" ajuda={equipsDoCliente.length ? 'A busca de peças passa a priorizar o que serve nesse modelo.' : 'Este cliente não tem drones cadastrados.'}>
@@ -438,7 +449,7 @@ function Editor({ id }: { id?: string }) {
 
             {/* Itens */}
             <Painel titulo={`Itens${rasc.itens.length ? ` (${rasc.itens.length})` : ''}`}>
-              <BuscaItem modeloId={modeloId} produtos={produtos} servicos={servicos} aoEscolher={escolherOpcao} aoLerQR={lerQR} />
+              <BuscaItem empresaId={rasc.empresaId} modeloId={modeloId} produtos={produtos} servicos={servicos} aoEscolher={escolherOpcao} aoLerQR={lerQR} />
 
               {rasc.itens.length === 0 && pendentes.length === 0 && (
                 <p className="mt-4 text-sm text-mata-suave">Nenhum item ainda. Use a descrição acima ou busque uma peça.</p>
@@ -453,7 +464,7 @@ function Editor({ id }: { id?: string }) {
                       <IconButton aria-label="Descartar" icone={<X size={16} />} onClick={() => setPendentes((l) => l.filter((x) => x.id !== p.id))} />
                     </div>
                     <BuscaItem
-                      modeloId={modeloId} produtos={produtos} servicos={servicos} placeholder="Buscar a peça ou serviço certo"
+                      empresaId={rasc.empresaId} modeloId={modeloId} produtos={produtos} servicos={servicos} placeholder="Buscar a peça ou serviço certo"
                       aoEscolher={(o) => { escolherOpcao(o); setPendentes((l) => l.filter((x) => x.id !== p.id)) }}
                     />
                   </li>
@@ -470,13 +481,13 @@ function Editor({ id }: { id?: string }) {
                   const prod = i.produtoId ? produtos.find((x) => x.id === i.produtoId) : undefined
                   const naoServe = prod && modeloId && compativel(prod, modeloId) === false
                   return (
-                    <li key={i.id} className="flex flex-col gap-2 border-b border-linha py-3 last:border-b-0 sm:flex-row sm:items-center">
+                    <li key={i.id} className="flex flex-col gap-2 border-b border-linha py-3 last:border-b-0 sm:flex-row sm:flex-wrap sm:items-center">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{i.descricao}</p>
                         <p className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-mata-suave">
                           {i.tipo === 'servico' ? 'Serviço' : i.tipo === 'drone' ? 'Drone' : prod ? `${prod.sku} · ${peso(prod.pesoG * i.quantidade)}` : 'Peça'}
                           {naoServe && <span className="font-medium text-ambar-texto">Não serve no {modeloNome}</span>}
-                          {prod && status !== 'aprovado' && prod.estoque < i.quantidade && <span className="font-medium text-barro-texto">Estoque: {prod.estoque}</span>}
+                          {prod && status !== 'aprovado' && estoqueDe(prod, [rasc.empresaId]) < i.quantidade && <span className="font-medium text-barro-texto">Estoque: {estoqueDe(prod, [rasc.empresaId])}</span>}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -493,6 +504,10 @@ function Editor({ id }: { id?: string }) {
                         <span className="num w-20 text-right text-sm font-medium sm:w-24">{brl(i.quantidade * i.valorUnit)}</span>
                         <IconButton aria-label={`Remover ${i.descricao}`} icone={<Trash2 size={16} />} onClick={() => removerItem(i.id)} />
                       </div>
+                      <label className="flex min-h-10 cursor-pointer items-center gap-2 text-xs text-mata-suave sm:w-full sm:basis-full">
+                        <input type="checkbox" className="size-5 accent-lavoura" checked={!!i.opcional} onChange={(e) => mudarItem(i.id, { opcional: e.target.checked || undefined })} />
+                        Adicional (opcional): aparece na proposta, fora do total
+                      </label>
                     </li>
                   )
                 })}
@@ -531,6 +546,7 @@ function Editor({ id }: { id?: string }) {
             <Painel titulo="Resumo">
               <dl className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between"><dt className="text-mata-suave">Subtotal</dt><dd className="num">{brl(subtotal)}</dd></div>
+                {totalOpcionais > 0 && <div className="flex justify-between"><dt className="text-mata-suave">Adicionais (fora do total)</dt><dd className="num text-mata-suave">{brl(totalOpcionais)}</dd></div>}
                 <div className="flex items-center justify-between gap-2">
                   <dt className="text-mata-suave">Desconto</dt>
                   <dd className="flex items-center gap-1.5">
@@ -556,7 +572,7 @@ function Editor({ id }: { id?: string }) {
                 <div className="mt-3 rounded-campo bg-barro-claro p-3 text-sm text-barro-texto" role="alert">
                   <p className="flex items-center gap-1.5 font-medium"><AlertTriangle size={16} aria-hidden />Estoque insuficiente</p>
                   <ul className="mt-1 list-disc pl-5">
-                    {faltas.map((f) => <li key={f.item.id}>{f.item.descricao}: pedido {f.item.quantidade}, em estoque {f.disponivel}</li>)}
+                    {faltas.map((f) => <li key={f.item.id}>{f.item.descricao}: pedido {f.item.quantidade}, em estoque {f.disponivel}{f.outras.map((o) => <span key={o.empresa.id}>. {o.empresa.cidade} tem {o.qtd} — <Link to={`/estoque/${f.produtoId}`} className="underline">pedir transferência</Link></span>)}</li>)}
                   </ul>
                 </div>
               )}

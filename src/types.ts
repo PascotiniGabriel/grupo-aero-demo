@@ -18,7 +18,10 @@ export interface Produto {
   grupo?: GrupoDiagrama
   custo: number
   preco: number
+  /** Total do grupo (soma de estoquePorEmpresa; a store mantém os dois coerentes). */
   estoque: number
+  /** Quantidade por empresa (id de EmpresaGrupo). */
+  estoquePorEmpresa?: Record<string, number>
   estoqueMinimo: number
   pesoG: number
   dimensoesCm: { c: number; l: number; a: number }
@@ -31,6 +34,8 @@ export interface Produto {
 }
 
 export interface Movimentacao {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string
   produtoId: string
   tipo: 'entrada' | 'saida'
@@ -56,6 +61,8 @@ export interface Local {
 }
 
 export interface Cliente {
+  /** Empresa de origem (opcional: clientes são do grupo). */
+  empresaId?: string
   id: string; nome: string; tipo: 'PF' | 'PJ'; documento: string; ie?: string
   cidade: string; uf: string; endereco: string; cep: string; fone: string; email: string
   desde: string; observacao?: string
@@ -94,11 +101,15 @@ export interface ItemComercial {
   descricao: string
   quantidade: number
   valorUnit: number
+  /** Adicional opcional: aparece na proposta, mas não entra no total nem baixa estoque. */
+  opcional?: boolean
 }
 
 export type StatusOrcamento = 'rascunho' | 'enviado' | 'aprovado' | 'recusado' | 'expirado'
 
 export interface Orcamento {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; numero: number; clienteId: string; data: string; validade: string
   status: StatusOrcamento
   itens: ItemComercial[]
@@ -128,6 +139,8 @@ export interface RelatorioOS {
 }
 
 export interface OrdemServico {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; numero: number; clienteId: string; equipamentoId: string
   status: StatusOS
   abertura: string; previsao: string; conclusao?: string
@@ -144,6 +157,8 @@ export interface OrdemServico {
 export interface ItemNota { descricao: string; ncm: string; quantidade: number; valorUnit: number; produtoId?: string }
 
 export interface NotaFiscal {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; numero: number; serie: string
   tipo: 'saida' | 'entrada'
   modelo: 'NF-e' | 'NFS-e'
@@ -157,6 +172,8 @@ export interface NotaFiscal {
 }
 
 export interface Lancamento {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; tipo: 'receber' | 'pagar'; descricao: string; categoria: string
   valor: number; vencimento: string; pagoEm?: string; clienteId?: string; forma: string; origem?: string
 }
@@ -164,6 +181,8 @@ export interface Lancamento {
 export type EtapaLead = 'novo' | 'contato' | 'demonstracao' | 'proposta' | 'fechado' | 'perdido'
 
 export interface Lead {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; nome: string; cidade: string; uf: string; fone: string; interesse: string
   valorEstimado: number; etapa: EtapaLead; origem: string; responsavel: string
   proximaAcao: string; proximaData: string; criadoEm: string; culturaHa?: string
@@ -172,13 +191,22 @@ export interface Lead {
 export interface MensagemConversa { id: string; de: 'cliente' | 'equipe' | 'ia'; texto: string; hora: string }
 
 export interface Conversa {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; clienteId?: string; nome: string; fone: string
   etiqueta: 'Peças' | 'Manutenção' | 'Venda de drone' | 'Financeiro'
   naoLidas: number
   mensagens: MensagemConversa[]
 }
 
-export interface Usuario { id: string; nome: string; papel: 'Gestor' | 'Vendas' | 'Técnico' | 'Estoque' }
+export interface Usuario {
+  id: string; nome: string; papel: 'Gestor' | 'Vendas' | 'Técnico' | 'Estoque'
+  /** Empresas do grupo a que o usuário tem acesso. */
+  empresaIds: string[]
+}
+
+/** Empresa (CNPJ) do grupo. `Empresa` abaixo guarda os dados gerais/configurações. */
+export interface EmpresaGrupo { id: string; nome: string; nomeCurto: string; cnpj: string; cidade: string; uf: string }
 
 export interface Empresa {
   nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string; unidades: string[]
@@ -194,6 +222,8 @@ export type StatusCompromisso = 'agendado' | 'em_andamento' | 'concluido' | 'can
 export interface ItemChecklist { texto: string; feito: boolean; origem?: string }
 
 export interface Compromisso {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string
   /** id de Usuario (OrdemServico.tecnico guarda o NOME). */
   tecnicoId: string
@@ -218,10 +248,14 @@ export interface RespostaCotacao {
   fornecedorId: string
   /** Mesmo índice dos itens; 0 = não tem. */
   precos: number[]
+  /** Peso unitário em kg por item (mesmo índice dos itens); 0 = não informado. */
+  pesos?: number[]
   frete: number; outrasDespesas: number; prazoDias: number; observacao?: string; recebidaEm: string
 }
 
 export interface Cotacao {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; numero: number; titulo: string; osId?: string; criadaEm: string
   status: 'rascunho' | 'enviada' | 'respondida' | 'fechada'
   itens: ItemCotacao[]
@@ -238,6 +272,8 @@ export interface MensagemChamado {
 }
 
 export interface Chamado {
+  /** Empresa do grupo dona do registro (ver lib/empresas; ausente = principal). */
+  empresaId?: string
   id: string; numero: number; clienteId: string; equipamentoId?: string; assunto: string
   status: 'ia' | 'aguardando_equipe' | 'equipe' | 'resolvido'
   abertoEm: string; atualizadoEm: string; responsavel?: string
@@ -246,6 +282,7 @@ export interface Chamado {
 
 export interface Dados {
   empresa: Empresa
+  empresas: EmpresaGrupo[]
   usuarios: Usuario[]
   modelos: ModeloDrone[]
   produtos: Produto[]

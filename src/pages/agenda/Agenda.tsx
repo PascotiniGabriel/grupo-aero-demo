@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarDays, ChevronLeft, ChevronRight, FileText, ListChecks, Plus, Wrench } from 'lucide-react'
 import { useStore } from '@/store'
+import { useFiltroEmpresa } from '@/lib/empresas'
 import { Button, CabecalhoPagina, EstadoVazio, Gaveta, Painel, Select, SeloStatus, cx } from '@/components/ui'
 import { dataCurta } from '@/lib/format'
 import { atrasada } from '@/pages/os/status'
@@ -17,7 +18,8 @@ export default function Agenda() {
   const compromissosRaw = useStore((s) => s.compromissos)
   const salvar = useStore((s) => s.salvar)
 
-  const compromissos = useMemo(() => compromissosRaw ?? [], [compromissosRaw])
+  const { filtrar } = useFiltroEmpresa()
+  const compromissos = useMemo(() => filtrar(compromissosRaw ?? []), [compromissosRaw, filtrar])
   const atual = usuarios.find((u) => u.id === usuarioAtualId)
   const tecnicos = useMemo(() => usuarios.filter((u) => u.papel === 'Técnico'), [usuarios])
   const ehTecnico = atual?.papel === 'Técnico'

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
-import type { Dados, Empresa, Movimentacao } from '@/types'
+import type { Dados, EmpresaGrupo, Empresa, Movimentacao, Produto } from '@/types'
 import { criarDadosDemo } from '@/data/seed'
+import { EMPRESA_PRINCIPAL_ID, EMPRESAS_GRUPO, distribuirEstoque, somaEstoque } from '@/data/empresas'
 import { useSync } from '@/lib/sync'
 import { idbStorage } from './armazenamento'
 
@@ -17,10 +18,15 @@ export type ItemDe<K extends Colecao> = Dados[K][number]
 
 export interface Estado extends Dados {
   usuarioAtualId: string
+  /** Filtro global: ids das empresas em vista (uma, várias ou todas). Persistido. */
+  empresaSelecionada: string[]
+  /** Ainda não escolheu nesta sessão? (não persistido; ver sessionStorage em lib/empresas). */
+  definirEmpresaSelecionada: (ids: string[]) => void
   salvar: <K extends Colecao>(colecao: K, item: ItemDe<K>) => void
   remover: (colecao: Colecao, id: string) => void
+  /** `empresaId` = empresa cujo estoque muda (padrão: a única selecionada, senão a principal). */
   movimentarEstoque: (m: {
-    produtoId: string; tipo: 'entrada' | 'saida'; quantidade: number; origem: string; valorUnit?: number
+    produtoId: string; tipo: 'entrada' | 'saida'; quantidade: number; origem: string; valorUnit?: number; empresaId?: string
   }) => void
   proximoNumero: (tipo: 'orcamento' | 'os' | 'nota') => number
   salvarEmpresa: (e: Empresa) => void
@@ -31,7 +37,7 @@ export interface Estado extends Dados {
 const ROTULO: Record<string, string> = {
   clientes: 'Cliente', equipamentos: 'Drone', orcamentos: 'Orçamento', ordens: 'OS', notas: 'Nota fiscal', lancamentos: 'Lançamento',
   leads: 'Lead', conversas: 'Conversa', produtos: 'Peça', movimentacoes: 'Movimentação', servicos: 'Serviço', usuarios: 'Usuário', modelos: 'Modelo',
-  compromissos: 'Compromisso', fornecedores: 'Fornecedor', cotacoes: 'Cotação', chamados: 'Chamado',
+  compromissos: 'Compromisso', fornecedores: 'Fornecedor', cotacoes: 'Cotação', chamados: 'Chamado', empresas: 'Empresa',
 }
 
 type Qualquer = Record<string, unknown>
@@ -74,6 +80,16 @@ const storage: StateStorage = {
   removeItem: (nome) => idbStorage.removeItem(nome),
 }
 
+/** Mantém `estoque` (total) coerente com `estoquePorEmpresa`. Se só `estoque` mudou (ex.: formulário da peça), a diferença vai para a principal. */
+function normalizarEstoque(p: Produto, empresas: EmpresaGrupo[], idx = 0): Produto {
+  if (!p.estoquePorEmpresa) return { ...p, estoquePorEmpresa: distribuirEstoque(p.estoque, idx, empresas.map((e) => e.id)) }
+  const soma = somaEstoque(p.estoquePorEmpresa)
+  if (soma === p.estoque) return p
+  const por = { ...p.estoquePorEmpresa }
+  por[EMPRESA_PRINCIPAL_ID] = Math.max(0, (por[EMPRESA_PRINCIPAL_ID] ?? 0) + (p.estoque - soma))
+  return { ...p, estoquePorEmpresa: por, estoque: somaEstoque(por) }
+}
+
 /** Dados salvos prevalecem; o que faltou (coleção nova) vem do seed. Itens novos do seed (orçamentos 2110/2111) entram sem apagar nada do usuário. */
 function mesclarComSeed(salvo: Partial<Estado>, atual: Estado): Estado {
   const r = { ...atual, ...salvo } as Estado
@@ -94,6 +110,17 @@ function mesclarComSeed(salvo: Partial<Estado>, atual: Estado): Estado {
     const novo = atual.chamados.find((c) => c.id === 'cha-9')
     if (novo && r.chamados.length) r.chamados = [...r.chamados, novo]
   }
+  // Multiempresa: empresas, estoque por empresa, empresaId (principal) e acesso dos usuários.
+  if (!Array.isArray(salvo.empresas) || !salvo.empresas.length) r.empresas = atual.empresas
+  if (!Array.isArray(salvo.empresaSelecionada) || !salvo.empresaSelecionada.length) r.empresaSelecionada = r.empresas.map((e) => e.id)
+  if (Array.isArray(r.produtos)) r.produtos = r.produtos.map((p, i) => normalizarEstoque(p, r.empresas, i))
+  const comEmpresa = <T extends { empresaId?: string }>(l: T[] | undefined) => (Array.isArray(l) ? l.map((x) => (x.empresaId ? x : { ...x, empresaId: EMPRESA_PRINCIPAL_ID })) : l)
+  for (const k of ['orcamentos', 'ordens', 'notas', 'lancamentos', 'leads', 'compromissos', 'movimentacoes', 'cotacoes', 'chamados', 'conversas'] as const) {
+    (r as unknown as Qualquer)[k] = comEmpresa(r[k] as Array<{ empresaId?: string }>)
+  }
+  if (Array.isArray(r.usuarios)) {
+    r.usuarios = r.usuarios.map((u) => (u.empresaIds?.length ? u : { ...u, empresaIds: atual.usuarios.find((x) => x.id === u.id)?.empresaIds ?? r.empresas.map((e) => e.id) }))
+  }
   return r
 }
 
@@ -102,13 +129,14 @@ export const useStore = create<Estado>()(
     (set, get) => ({
       ...criarDadosDemo(),
       usuarioAtualId: 'usr-1',
+      empresaSelecionada: EMPRESAS_GRUPO.map((e) => e.id),
 
       salvar: (colecao, item) => {
         const lista = get()[colecao] as Array<{ id: string }>
         const antes = lista.find((x) => x.id === item.id)
         const nova = antes ? lista.map((x) => (x.id === item.id ? item : x)) : [...lista, item]
         useSync.getState().registrar({ acao: 'salvar', colecao, itemId: item.id, resumo: descrever(colecao, antes as Qualquer | undefined, item as unknown as Qualquer) })
-        set({ [colecao]: nova } as Partial<Estado>)
+        set({ [colecao]: colecao === 'produtos' ? (nova as Produto[]).map((p) => normalizarEstoque(p, get().empresas)) : nova } as Partial<Estado>)
       },
 
       remover: (colecao, id) => {
@@ -117,18 +145,26 @@ export const useStore = create<Estado>()(
         set({ [colecao]: lista.filter((x) => x.id !== id) } as Partial<Estado>)
       },
 
-      movimentarEstoque: ({ produtoId, tipo, quantidade, origem, valorUnit }) => {
+      definirEmpresaSelecionada: (ids) => set({ empresaSelecionada: ids }),
+
+      movimentarEstoque: ({ produtoId, tipo, quantidade, origem, valorUnit, empresaId }) => {
         const s = get()
         const p = s.produtos.find((x) => x.id === produtoId)
         if (!p || quantidade <= 0) return
         const delta = tipo === 'entrada' ? quantidade : -quantidade
+        const emp = empresaId ?? (s.empresaSelecionada.length === 1 ? s.empresaSelecionada[0] : EMPRESA_PRINCIPAL_ID)
         const mov: Movimentacao = {
-          id: novoId('mov'), produtoId, tipo, quantidade, data: new Date().toISOString(), origem,
+          id: novoId('mov'), empresaId: emp, produtoId, tipo, quantidade, data: new Date().toISOString(), origem,
           valorUnit: valorUnit ?? (tipo === 'entrada' ? p.custo : p.preco),
         }
         useSync.getState().registrar({ acao: 'estoque', colecao: 'produtos', itemId: produtoId, resumo: `${p.nome} — ${tipo === 'entrada' ? 'entrada' : 'saída'} de ${quantidade}` })
         set({
-          produtos: s.produtos.map((x) => (x.id === produtoId ? { ...x, estoque: Math.max(0, x.estoque + delta) } : x)),
+          produtos: s.produtos.map((x) => {
+            if (x.id !== produtoId) return x
+            const por = { ...(x.estoquePorEmpresa ?? {}) }
+            por[emp] = Math.max(0, (por[emp] ?? 0) + delta)
+            return { ...x, estoquePorEmpresa: por, estoque: somaEstoque(por) }
+          }),
           movimentacoes: [mov, ...s.movimentacoes],
         })
       },
@@ -147,7 +183,7 @@ export const useStore = create<Estado>()(
       definirUsuario: (usuarioAtualId) => set({ usuarioAtualId }),
       restaurarDemo: () => {
         useSync.setState({ fila: [], enviados: [] })
-        set({ ...criarDadosDemo(), usuarioAtualId: 'usr-1' })
+        set({ ...criarDadosDemo(), usuarioAtualId: 'usr-1', empresaSelecionada: EMPRESAS_GRUPO.map((e) => e.id) })
       },
     }),
     {

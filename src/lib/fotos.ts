@@ -51,3 +51,20 @@ export function reduzirImagem(file: File, maxLado = 1100): Promise<string> {
     leitor.readAsDataURL(file)
   })
 }
+
+const COR_CATEGORIA: Record<string, string> = {
+  Propulsão: '#1E78C8', Pulverização: '#1F8A4C', Estrutura: '#5B6B63', Eletrônica: '#7A5AC8', Energia: '#B07A00', Sensores: '#0F8A8A', Acessórios: '#8A5A3C', Drones: '#10231C',
+}
+
+/** Miniatura neutra de produto (data URI SVG, sempre clara, para documentos impressos). */
+export function miniaturaProduto(categoria: string, codigo: string): string {
+  const cor = COR_CATEGORIA[categoria] ?? '#5B6B63'
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="120" viewBox="0 0 160 120">` +
+    `<rect width="160" height="120" fill="#F3F6F4"/>` +
+    `<g fill="none" stroke="${cor}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".9">` +
+    `<path d="M80 22l34 19v38L80 98 46 79V41z"/><path d="M46 41l34 19 34-19M80 60v38"/></g>` +
+    `<text x="80" y="113" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-size="10" fill="#4B5F56">${esc(codigo.slice(0, 22))}</text>` +
+    `</svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}

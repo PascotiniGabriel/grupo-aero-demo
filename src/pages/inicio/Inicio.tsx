@@ -7,6 +7,7 @@ import { useStore } from '@/store'
 import { usePapel } from '@/components/layout/nav'
 import { porId, saidasPorProduto } from '@/store/selectors'
 import { brl, dataCurta, numero } from '@/lib/format'
+import { EMPRESA_PRINCIPAL_ID, estoqueDe, useFiltroEmpresa } from '@/lib/empresas'
 import { ESTILO_TOOLTIP } from '@/lib/graficos'
 import type { StatusOS } from '@/types'
 import { contaVencidos, diasMs, listarVendas, somaVendas, vendasPorMes, type Periodo } from './calculos'
@@ -41,15 +42,33 @@ function Ranking({ linhas, vazio }: { linhas: [string, number][]; vazio: string 
 export default function Inicio() {
   const navegar = useNavigate()
   const [periodo, setPeriodo] = useState<Periodo>(30)
-  const produtos = useStore((s) => s.produtos)
-  const movs = useStore((s) => s.movimentacoes)
-  const orcamentos = useStore((s) => s.orcamentos)
-  const ordens = useStore((s) => s.ordens)
-  const lancamentos = useStore((s) => s.lancamentos)
+  const produtosTodos = useStore((s) => s.produtos)
+  const movsTodos = useStore((s) => s.movimentacoes)
+  const orcamentosTodos = useStore((s) => s.orcamentos)
+  const ordensTodas = useStore((s) => s.ordens)
+  const lancamentosTodos = useStore((s) => s.lancamentos)
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
-  const leads = useStore((s) => s.leads)
-  const conversas = useStore((s) => s.conversas)
+  const leadsTodos = useStore((s) => s.leads)
+  const conversasTodas = useStore((s) => s.conversas)
+  const { ids, empresas, multiplas, filtrar } = useFiltroEmpresa()
+  // Tudo abaixo usa só as empresas em vista; `estoque` dos produtos vira a quantidade nessas empresas.
+  const produtos = useMemo(() => produtosTodos.map((p) => ({ ...p, estoque: estoqueDe(p, ids) })), [produtosTodos, ids])
+  const movs = useMemo(() => filtrar(movsTodos), [movsTodos, filtrar])
+  const orcamentos = useMemo(() => filtrar(orcamentosTodos), [orcamentosTodos, filtrar])
+  const ordens = useMemo(() => filtrar(ordensTodas), [ordensTodas, filtrar])
+  const lancamentos = useMemo(() => filtrar(lancamentosTodos), [lancamentosTodos, filtrar])
+  const leads = useMemo(() => filtrar(leadsTodos), [leadsTodos, filtrar])
+  const conversas = useMemo(() => filtrar(conversasTodas), [conversasTodas, filtrar])
+  const comparativo = useMemo(() => {
+    const agora = Date.now(), corte = agora - diasMs(periodo)
+    return empresas.map((e) => ({
+      e,
+      fat: somaVendas(listarVendas({ orcamentos: orcamentosTodos.filter((o) => (o.empresaId ?? EMPRESA_PRINCIPAL_ID) === e.id), ordens: ordensTodas.filter((o) => (o.empresaId ?? EMPRESA_PRINCIPAL_ID) === e.id) }), corte, agora + diasMs(1)),
+      os: ordensTodas.filter((o) => (o.empresaId ?? EMPRESA_PRINCIPAL_ID) === e.id && o.status !== 'entregue').length,
+      valorEstoque: produtosTodos.filter((p) => p.tipo !== 'drone').reduce((a, p) => a + p.custo * (p.estoquePorEmpresa?.[e.id] ?? 0), 0),
+    }))
+  }, [empresas, orcamentosTodos, ordensTodas, produtosTodos, periodo])
   const papel = usePapel()
   const gestor = papel === 'Gestor', vendas = papel === 'Vendas', estoque = papel === 'Estoque'
 
@@ -126,7 +145,7 @@ export default function Inicio() {
     if (vencidos.qtd > 0) {
       leitura.push({
         area: 'financeiro',
-        texto: `${vencidos.qtd} cobranças estão vencidas, somando ${brl(vencidos.valor)} a receber.`,
+        texto: `${vencidos.qtd} ${vencidos.qtd === 1 ? "cobrança está vencida" : "cobranças estão vencidas"}, somando ${brl(vencidos.valor)} a receber.`,
         acoes: [{ rotulo: 'Ver financeiro', to: '/financeiro' }, { rotulo: 'Perguntar mais', to: `/assistente?q=${encodeURIComponent('Quais clientes estão com pagamento atrasado?')}` }],
       })
     }
@@ -142,7 +161,7 @@ export default function Inicio() {
       valorEstoque: itens.reduce((a, p) => a + p.estoque * p.custo, 0), qtdItens: itens.length,
       leadsAbertos: leads.filter((l) => l.etapa !== 'fechado' && l.etapa !== 'perdido'),
       porEtapa: ETAPAS.map(([id, nome]) => ({ nome, n: leads.filter((l) => l.etapa === id).length })) }
-  }, [periodo, produtos, movs, orcamentos, ordens, lancamentos, equipamentos, modelos, leads, papel])
+  }, [periodo, produtos, movs, orcamentos, ordens, lancamentos, equipamentos, modelos, leads, papel]) // eslint-disable-line react-hooks/exhaustive-deps
   const naoLidas = conversas.reduce((n, c) => n + c.naoLidas, 0)
 
   const tickBrl = (v: number) => (v >= 1000 ? `${numero(v / 1000)} mil` : numero(v))
@@ -185,8 +204,28 @@ export default function Inicio() {
         <Link to="/financeiro" className="block rounded-painel focus-visible:outline-2"><Indicador rotulo="Vendas fechadas no período" valor={brl(d.fat)} variacao={d.variacao} detalhe={d.variacao === undefined ? 'sem período anterior' : 'vs período anterior'} className="h-full hover:border-lavoura" /></Link>
         <Link to="/os" className="block rounded-painel"><Indicador rotulo="OS em aberto" valor={numero(d.abertas.length)} cor={d.atrasadas.length ? 'ambar' : undefined} detalhe={d.atrasadas.length ? `${d.atrasadas.length} atrasadas` : 'nenhuma atrasada'} className="h-full hover:border-lavoura" /></Link>
         <Link to="/orcamentos" className="block rounded-painel"><Indicador rotulo="Orçamentos aguardando" valor={numero(d.aguardando.length)} detalhe={brl(d.valorAguardando)} className="h-full hover:border-lavoura" /></Link>
-        <Link to="/financeiro" className="block rounded-painel"><Indicador rotulo="A receber vencido" valor={brl(d.vencidos.valor)} cor={d.vencidos.qtd ? 'vermelho' : undefined} detalhe={`${d.vencidos.qtd} cobranças`} className="h-full hover:border-lavoura" /></Link>
+        <Link to="/financeiro" className="block rounded-painel"><Indicador rotulo="A receber vencido" valor={brl(d.vencidos.valor)} cor={d.vencidos.qtd ? 'vermelho' : undefined} detalhe={`${d.vencidos.qtd} ${d.vencidos.qtd === 1 ? "cobrança" : "cobranças"}`} className="h-full hover:border-lavoura" /></Link>
         </div>
+      )}
+
+      {multiplas && (
+        <Painel titulo="Comparativo por empresa" className="mt-4" acoes={<span className="text-xs text-mata-suave">faturamento do período</span>} semPadding>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[460px] text-sm">
+              <thead><tr className="border-b border-linha text-left text-xs text-mata-suave"><th className="px-4 py-2 font-medium">Empresa</th><th className="px-2 py-2 text-right font-medium">Faturamento</th><th className="px-2 py-2 text-right font-medium">OS abertas</th><th className="px-4 py-2 text-right font-medium">Valor em estoque</th></tr></thead>
+              <tbody>
+                {comparativo.map((c) => (
+                  <tr key={c.e.id} className="border-b border-linha last:border-0">
+                    <td className="px-4 py-2.5"><span className="font-medium">{c.e.nome}</span> <span className="text-xs text-mata-suave">{c.e.cidade}-{c.e.uf}</span></td>
+                    <td className="num px-2 py-2.5 text-right">{brl(c.fat)}</td>
+                    <td className="num px-2 py-2.5 text-right">{numero(c.os)}</td>
+                    <td className="num px-4 py-2.5 text-right">{brl(c.valorEstoque)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Painel>
       )}
 
       <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">

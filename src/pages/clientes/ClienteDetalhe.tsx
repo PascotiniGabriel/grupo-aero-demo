@@ -4,6 +4,7 @@ import { ArrowLeft, FilePlus2, FileText, MessageCircle, Pencil, Plus, QrCode, Re
 import type { Cliente, Equipamento } from '@/types'
 import { Avatar, Button, Campo, CabecalhoPagina, EstadoVazio, Gaveta, Indicador, Input, Painel, Select, Selo, toast, cx } from '@/components/ui'
 import { useLeitorQR } from '@/components/qr/LeitorQR'
+import { SeloEmpresa } from '@/lib/empresas'
 import { useStore, novoId } from '@/store'
 import { nomeModelo, totalOrcamento } from '@/store/selectors'
 import { brl, dataCurta, numero, relativo } from '@/lib/format'
@@ -55,17 +56,17 @@ function Detalhe({ cliente }: { cliente: Cliente }) {
   const orcAbertos = orcamentos.filter((o) => o.clienteId === cliente.id && (o.status === 'rascunho' || o.status === 'enviado'))
 
   const linha = useMemo(() => {
-    const it: { id: string; data: string; icone: typeof FileText; titulo: string; detalhe: string; link: string }[] = []
+    const it: { id: string; data: string; icone: typeof FileText; titulo: string; detalhe: string; link: string; empresaId?: string }[] = []
     for (const o of orcamentos.filter((x) => x.clienteId === cliente.id))
-      it.push({ id: o.id, data: o.data, icone: FileText, titulo: `Orçamento ${o.numero}`, detalhe: `${rotuloStatus('orcamento', o.status)} · ${brl(totalOrcamento(o))}`, link: `/orcamentos/${o.id}` })
+      it.push({ id: o.id, data: o.data, icone: FileText, titulo: `Orçamento ${o.numero}`, detalhe: `${rotuloStatus('orcamento', o.status)} · ${brl(totalOrcamento(o))}`, link: `/orcamentos/${o.id}`, empresaId: o.empresaId })
     for (const o of ordens.filter((x) => x.clienteId === cliente.id)) {
       const e = equipamentos.find((q) => q.id === o.equipamentoId)
-      it.push({ id: o.id, data: o.abertura, icone: Wrench, titulo: `OS ${o.numero}${e ? ` · ${nomeModelo(e.modeloId, modelos)}` : ''}`, detalhe: `${rotuloStatus('os', o.status)} · ${o.relatoCliente}`, link: `/os/${o.id}` })
+      it.push({ id: o.id, data: o.abertura, icone: Wrench, titulo: `OS ${o.numero}${e ? ` · ${nomeModelo(e.modeloId, modelos)}` : ''}`, detalhe: `${rotuloStatus('os', o.status)} · ${o.relatoCliente}`, link: `/os/${o.id}`, empresaId: o.empresaId })
     }
     for (const n of notas.filter((x) => x.clienteId === cliente.id))
-      it.push({ id: n.id, data: n.data, icone: Receipt, titulo: `Nota ${n.numero} (${n.modelo})`, detalhe: `${n.natureza} · ${brl(n.valor)}`, link: '/notas' })
+      it.push({ id: n.id, data: n.data, icone: Receipt, titulo: `Nota ${n.numero} (${n.modelo})`, detalhe: `${n.natureza} · ${brl(n.valor)}`, link: '/notas', empresaId: n.empresaId })
     for (const l of lancamentos.filter((x) => x.clienteId === cliente.id && x.tipo === 'receber'))
-      it.push({ id: l.id, data: l.pagoEm ?? l.vencimento, icone: Wallet, titulo: l.descricao, detalhe: `${rotuloStatus('lancamento', statusLancamento(l))} · ${brl(l.valor)}`, link: '/financeiro' })
+      it.push({ id: l.id, data: l.pagoEm ?? l.vencimento, icone: Wallet, titulo: l.descricao, detalhe: `${rotuloStatus('lancamento', statusLancamento(l))} · ${brl(l.valor)}`, link: '/financeiro', empresaId: l.empresaId })
     return it.sort((a, b) => b.data.localeCompare(a.data))
   }, [orcamentos, ordens, notas, lancamentos, equipamentos, modelos, cliente.id])
 
@@ -162,7 +163,7 @@ function Detalhe({ cliente }: { cliente: Cliente }) {
                   <li key={`${i.id}-${i.titulo}`} className="relative pb-4 pl-5 last:pb-0">
                     <span className="absolute -left-[7px] top-1 h-3 w-3 rounded-full border-2 border-papel bg-lavoura" aria-hidden />
                     <Link to={i.link} className="group block">
-                      <p className="flex items-center gap-2 text-sm font-medium group-hover:text-ceu"><i.icone size={14} className="text-mata-suave" aria-hidden />{i.titulo}</p>
+                      <p className="flex items-center gap-2 text-sm font-medium group-hover:text-ceu"><i.icone size={14} className="text-mata-suave" aria-hidden />{i.titulo}<SeloEmpresa empresaId={i.empresaId} /></p>
                       <p className="text-xs text-mata-suave">{dataCurta(i.data)} ({relativo(i.data)}) · {i.detalhe}</p>
                     </Link>
                   </li>

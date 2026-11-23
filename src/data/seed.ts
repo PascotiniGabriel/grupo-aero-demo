@@ -8,6 +8,7 @@ import { PLANOS_SUPORTE, suporteDoCliente, chamadoUsoAlto } from './suporte'
 import { criarCompromissos } from './agenda'
 import { CHECKLIST_ATENDIMENTO } from './checklists'
 import { LOCAIS_CLIENTES, OS_CAMPO } from './locais'
+import { distribuirEmpresas } from './empresas'
 import { criarLancamentos, criarMovimentacoes, criarNotas } from './financeiro'
 
 export { diasAtras, diasAFrente, criarPRNG } from './util'
@@ -17,7 +18,7 @@ export function criarDadosDemo(): Dados {
   const produtos = criarProdutos()
   const clientes = criarClientes()
   const { orcamentos, ordens, leads, conversas } = criarComercial(produtos, SERVICOS)
-  return {
+  return distribuirEmpresas({
     empresa: {
       ...EMPRESA, unidades: [...EMPRESA.unidades],
       checklistAtendimento: { campo: [...CHECKLIST_ATENDIMENTO.campo], oficina: [...CHECKLIST_ATENDIMENTO.oficina] },
@@ -44,5 +45,6 @@ export function criarDadosDemo(): Dados {
     fornecedores: criarFornecedores(),
     cotacoes: criarCotacoes(),
     chamados: [...criarChamados(), chamadoUsoAlto()],
-  }
+    empresas: [],
+  })
 }

@@ -5,12 +5,50 @@ import type { Cliente, Dados, Equipamento, OrdemServico, Produto, Usuario } from
 import { brl, dataCurta, normalizar, numero, peso, relativo } from '../format'
 import { saidasPorProduto, totalItens, totalOrcamento } from '@/store/selectors'
 import { chamarGemini, esperar, iaReal } from './index'
+import { estoqueDe, filtrarPorEmpresa } from '../empresas'
 import { ASSUNTOS_IA, podeAcessar, type Assunto, type Papel } from '../acesso'
 
 export interface LinkResposta { rotulo: string; rota: string }
 export interface RespostaAssistente { texto: string; links: LinkResposta[]; fonte: string; continuacoes: string[]; bloqueada?: boolean }
 /** Quem está perguntando: define o que o assistente pode responder. Sem contexto, vale o perfil Gestor. */
-export interface ContextoIA { papel: Papel; usuario?: Usuario }
+export interface ContextoIA {
+  papel: Papel; usuario?: Usuario
+  /** Empresas em vista (filtro global); estoque e registros são restritos a elas. */
+  empresaIds?: string[]
+  /** Empresas a que o usuário tem acesso (para citar onde a peça existe). */
+  acessoIds?: string[]
+}
+
+/** Restringe os dados às empresas em vista: registros filtrados e `estoque` = quantidade nessas empresas. */
+function escopar(d: Dados, ids?: string[]): Dados {
+  if (!ids?.length || ids.length >= d.empresas.length) return d
+  const f = <T extends { empresaId?: string }>(l: T[]) => filtrarPorEmpresa(l, ids)
+  return {
+    ...d,
+    produtos: d.produtos.map((p) => ({ ...p, estoque: estoqueDe(p, ids) })),
+    movimentacoes: f(d.movimentacoes), orcamentos: f(d.orcamentos), ordens: f(d.ordens), notas: f(d.notas),
+    lancamentos: f(d.lancamentos), cotacoes: f(d.cotacoes),
+  }
+}
+
+/** "Santa Maria: 0 · Cruz Alta: 8" + aviso de transferência quando a empresa em vista não tem a peça. */
+function porEmpresaDaPeca(p: Produto, d: Dados): string {
+  const por = p.estoquePorEmpresa
+  const acesso = CTX.acessoIds
+  const emps = d.empresas.filter((e) => !acesso?.length || acesso.includes(e.id))
+  if (!por || emps.length < 2) return ''
+  const q = (id: string) => por[id] ?? 0
+  const ver = CTX.empresaIds?.length ? emps.filter((e) => CTX.empresaIds!.includes(e.id)) : emps
+  let t = `
+- Por empresa: ${emps.map((e) => `${e.cidade}: ${numero(q(e.id))}`).join(' · ')}`
+  if (ver.length < emps.length && ver.every((e) => q(e.id) === 0)) {
+    const outras = emps.filter((e) => !ver.includes(e) && q(e.id) > 0).sort((a, b) => q(b.id) - q(a.id))
+    if (outras.length) t += `
+
+${ver.map((e) => e.cidade).join(' e ')} ${ver.length > 1 ? 'estão sem' : 'está sem'} esta peça, mas ${outras.map((e) => `**${e.cidade}** tem ${numero(q(e.id))}`).join(' e ')}. Dá para pedir uma transferência pelo [estoque](/estoque/${p.id}).`
+  }
+  return t
+}
 
 let CTX: ContextoIA = { papel: 'Gestor' }
 const pode = (a: Assunto) => ASSUNTOS_IA[CTX.papel].has(a)
@@ -137,7 +175,7 @@ const dentro = (iso: string, p: Periodo) => { const t = ts(iso); return t >= p.i
 
 // ---------------------------------------------------------------- entidades
 
-const STOP = new Set(`quanto quantos quantas qual quais que como onde quando tem temos tenho estoque estoques preco precos custa custam valor valores
+const STOP = new Set(`empresa empresas filial filiais unidade unidades quanto quantos quantas qual quais que como onde quando tem temos tenho estoque estoques preco precos custa custam valor valores
 disponivel disponiveis pecas peca produto produtos item itens mais menos saem sai saida saidas vendem vende vendida vendidas vendido vendidos giro serve servem
 compativel compativeis drones pesa pesam peso pesos kg frete uma um uns umas o a os as de do da dos das no na nos nas em para pra pro por pelo pela com sem e ou se
 me eu voce ja ainda hoje agora preciso quero queria gostaria saber ver mostre mostra mostrar fale diga lista liste listar sobre ha esta estao tinha restam
@@ -519,11 +557,12 @@ function fichaPeca(p: Produto, d: Dados, s90: Record<string, number>): string {
   const dinheiro = pode('preco_venda') || pode('custo_margem')
     ? `- ${[pode('preco_venda') ? `Preço de venda: **${brl(p.preco)}**` : '', pode('custo_margem') ? `custo ${brl(p.custo)}` : ''].filter(Boolean).join(' · ')}\n` : ''
   return `**${lp(p)}** (SKU ${p.sku})\n`
-    + `- Estoque: **${un(p.estoque)}**, mínimo ${numero(p.estoqueMinimo)} (${sit})\n`
+    + `- Estoque${CTX.empresaIds?.length && d.empresas.length > CTX.empresaIds.length ? ' na empresa em vista' : ''}: **${un(p.estoque)}**, mínimo ${numero(p.estoqueMinimo)} (${sit})\n`
     + dinheiro
     + `- Localização: ${p.localizacao}${pode('compras_giro') ? ` · fornecedor ${p.fornecedor}` : ''}\n`
     + `- Serve em: ${nomesMod(p.modelosCompativeis, d)}\n`
     + (pode('compras_giro') ? `- Saídas nos últimos 90 dias: ${numero(s90[p.id] ?? 0)}` : `- Peso: ${peso(p.pesoG)}`)
+    + (pode('estoque_quantidade') ? porEmpresaDaPeca(p, d) : '')
 }
 
 function rPeca(c: Consulta, d: Dados): RespostaAssistente {
@@ -971,7 +1010,7 @@ export const PERFIL_IA: Record<Papel, PerfilIA> = {
     subtitulo: 'Faça perguntas sobre estoque, peças, oficina, vendas e financeiro.',
     apresentacao: 'o estoque, as OS, os orçamentos, o financeiro e o catálogo de peças',
     ajuda: ['estoque, giro e o que comprar', 'OS, clientes e orçamentos', 'faturamento, contas e funil', 'dúvidas técnicas de manutenção'],
-    sugestoes: ['Quais peças mais saem?', 'O que preciso comprar?', 'Quais OS estão atrasadas?', 'Quanto faturamos este mês?', 'Quais orçamentos aguardam resposta?'],
+    sugestoes: ['Quais peças mais saem?', 'O que preciso comprar?', 'Quais OS estão atrasadas?', 'Quanto faturamos este mês?', 'Qual empresa tem hélice do T40?'],
   },
   Vendas: {
     subtitulo: 'Assistente comercial: clientes, orçamentos, funil, preços e peças.',
@@ -989,7 +1028,7 @@ export const PERFIL_IA: Record<Papel, PerfilIA> = {
     subtitulo: 'Assistente do estoque: giro, compras, entradas e peças.',
     apresentacao: 'estoque, giro, compras, custos, notas de entrada, peças das OS e compatibilidade',
     ajuda: ['peças que mais saem e paradas', 'o que comprar (abaixo do mínimo)', 'notas fiscais de entrada', 'localização, peso e compatibilidade de uma peça'],
-    sugestoes: ['O que preciso comprar?', 'Quais peças mais saem?', 'Quais peças estão paradas há mais de 90 dias?', 'Quais notas de entrada chegaram?', 'Quais OS estão aguardando peças?'],
+    sugestoes: ['O que preciso comprar?', 'Quais peças mais saem?', 'Qual empresa tem hélice do T40?', 'Quais notas de entrada chegaram?', 'Quais OS estão aguardando peças?'],
   },
 }
 
@@ -1121,13 +1160,14 @@ export function textoSimples(md: string): string {
 
 /** Resposta calculada localmente (síncrona). Usada pelo caminho simulado e como base do Gemini. Sem `ctx`, perfil Gestor. */
 export function responderSimulado(pergunta: string, historico: MensagemHistorico[], dados: Dados, ctx?: ContextoIA): RespostaAssistente {
-  return comCtx(ctx, () => montarSimulado(resolver(pergunta, historico, dados), dados))
+  return comCtx(ctx, () => { const d = escopar(dados, ctx?.empresaIds); return montarSimulado(resolver(pergunta, historico, d), d) })
 }
 
 /** Panorama só com o que o papel pode ver. */
 function panorama(d: Dados): string {
   const hoje = inicioHoje().getTime()
   const l = [`Empresa: ${d.empresa.nome} (revenda de drones agrícolas DJI Agras, peças e oficina).`]
+  if (CTX.empresaIds?.length && CTX.empresaIds.length < d.empresas.length) l.push(`Empresas em vista (filtro): ${d.empresas.filter((e) => CTX.empresaIds!.includes(e.id)).map((e) => e.nome).join(', ')}. Os números abaixo valem só para elas; "estoque" é a quantidade nelas.`)
   if (pode('estoque_quantidade')) {
     const baixas = d.produtos.filter((p) => p.tipo !== 'drone' && p.estoque <= p.estoqueMinimo)
     l.push(`Peças cadastradas: ${d.produtos.length}${pode('compras_giro') ? `; no mínimo ou abaixo: ${baixas.length}` : ''}.`)
@@ -1151,6 +1191,7 @@ async function viaGemini(c: Consulta, base: RespostaAssistente, historico: Mensa
     nome: p.nome, sku: p.sku, estoque: p.estoque, minimo: p.estoqueMinimo,
     ...(pode('preco_venda') ? { preco: p.preco } : {}), ...(pode('custo_margem') ? { custo: p.custo } : {}),
     ...(pode('peso_frete') ? { pesoG: p.pesoG } : {}), ...(pode('compatibilidade') ? { modelos: nomesMod(p.modelosCompativeis, d) } : {}),
+    ...(p.estoquePorEmpresa && pode('estoque_quantidade') ? { estoquePorEmpresa: Object.fromEntries(d.empresas.filter((e) => !CTX.acessoIds?.length || CTX.acessoIds.includes(e.id)).map((e) => [e.cidade, p.estoquePorEmpresa![e.id] ?? 0])) } : {}),
     local: p.localizacao, ...(pode('compras_giro') ? { saidas90d: s90[p.id] ?? 0 } : {}),
   }))
   const papel = CTX.papel
@@ -1172,10 +1213,11 @@ async function viaGemini(c: Consulta, base: RespostaAssistente, historico: Mensa
 /** Responde à pergunta usando os dados do sistema que o perfil (`ctx`) pode ver. Sem `ctx`, perfil Gestor. */
 export async function responder(pergunta: string, historico: MensagemHistorico[], dados: Dados, ctx?: ContextoIA): Promise<RespostaAssistente> {
   const cx: ContextoIA = ctx ?? { papel: 'Gestor' }
-  const { c, base } = comCtx(cx, () => { const q = resolver(pergunta, historico, dados); return { c: q, base: montarSimulado(q, dados) } })
+  const d = comCtx(cx, () => escopar(dados, cx.empresaIds))
+  const { c, base } = comCtx(cx, () => { const q = resolver(pergunta, historico, d); return { c: q, base: montarSimulado(q, d) } })
   if (base.bloqueada) { await esperar(400); return base }
   if (iaReal()) {
-    try { return await comCtx(cx, () => viaGemini(c, base, historico, dados)) } catch { /* cai no simulado */ }
+    try { return await comCtx(cx, () => viaGemini(c, base, historico, d)) } catch { /* cai no simulado */ }
   }
   await esperar(900)
   return base

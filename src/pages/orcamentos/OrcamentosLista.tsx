@@ -6,6 +6,7 @@ import { Button, CabecalhoPagina, Selo, CampoBusca, EstadoVazio, Indicador, Pain
 import { useStore } from '@/store'
 import { totalOrcamento } from '@/store/selectors'
 import { brl, dataCurta, normalizar } from '@/lib/format'
+import { SeloEmpresa, useFiltroEmpresa } from '@/lib/empresas'
 import { TIPOS, rotuloTipo, type TipoOrcamento } from './ServicoUI'
 
 const SITUACOES: { id: 'todos' | StatusOrcamento; rotulo: string }[] = [
@@ -15,7 +16,9 @@ const SITUACOES: { id: 'todos' | StatusOrcamento; rotulo: string }[] = [
 
 export default function OrcamentosLista() {
   const navegar = useNavigate()
-  const orcamentos = useStore((s) => s.orcamentos)
+  const todos = useStore((s) => s.orcamentos)
+  const { filtrar } = useFiltroEmpresa()
+  const orcamentos = useMemo(() => filtrar(todos), [todos, filtrar])
   const clientes = useStore((s) => s.clientes)
   const [busca, setBusca] = useState('')
   const [situacao, setSituacao] = useState<'todos' | StatusOrcamento>('todos')
@@ -53,7 +56,7 @@ export default function OrcamentosLista() {
     { id: 'numero', titulo: 'Número', valor: (o) => o.numero, render: (o) => <span className="num font-medium">{o.numero}</span> },
     {
       id: 'cliente', titulo: 'Cliente', principal: true, valor: (o) => nomeCliente(o),
-      render: (o) => <span className="inline-flex items-center gap-2">{nomeCliente(o)}{o.criadoPorIA && <SeloIA />}</span>,
+      render: (o) => <span className="inline-flex items-center gap-2">{nomeCliente(o)}<SeloEmpresa empresaId={o.empresaId} />{o.criadoPorIA && <SeloIA />}</span>,
     },
     { id: 'tipo', titulo: 'Tipo', valor: (o) => rotuloTipo(o.tipo), render: (o) => <Selo cor={o.tipo === 'manutencao' ? 'azul' : o.tipo === 'pulverizacao' ? 'verde' : 'neutro'}>{rotuloTipo(o.tipo)}</Selo> },
     { id: 'data', titulo: 'Data', valor: (o) => o.data, render: (o) => dataCurta(o.data) },

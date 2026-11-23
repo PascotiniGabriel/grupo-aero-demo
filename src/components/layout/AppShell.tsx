@@ -11,6 +11,7 @@ import { BotaoTema } from './Tema'
 import { gruposDoPapel, usePapel, type ItemNav } from './nav'
 import { IndicadorSync } from './Sincronizacao'
 import { VerComo } from './VerComo'
+import { EscolherEmpresa, SeletorEmpresa } from './EmpresaSeletor'
 
 /** Casca do app: barra lateral, barra superior, navegação do celular, busca global, leitor de QR e avisos. */
 export function AppShell() {
@@ -53,6 +54,7 @@ export function AppShell() {
       <NavCelular papel={papel} abrirMenu={() => setMenuAberto(true)} abrirQR={() => abrirQR()} />
       <BuscaGlobal />
       <LeitorQR />
+      <EscolherEmpresa />
       <Toasts />
     </div>
   )
@@ -183,7 +185,7 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
     <header className="nao-imprimir sticky top-0 z-30 border-b border-linha bg-nevoa/92 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-2 px-2 md:px-4 lg:h-16 lg:gap-3 lg:px-8">
         <IconButton aria-label="Abrir menu" icone={<Menu size={20} aria-hidden />} onClick={abrirMenu} className="lg:hidden" />
-        <Link to="/" aria-label="Aerobrasil Drones, ir para o início" className="rounded-campo lg:hidden"><MarcaCompacta /></Link>
+        <Link to="/" aria-label="Aerobrasil Drones, ir para o início" className="rounded-campo lg:hidden"><MarcaCompacta className="max-[479px]:[&>span:last-child]:hidden" /></Link>
 
         <button
           type="button" onClick={abrirBusca}
@@ -196,6 +198,7 @@ function BarraSuperior({ abrirMenu }: { abrirMenu: () => void }) {
 
         <div className="flex-1" />
 
+        <SeletorEmpresa />
         <IndicadorSync />
         <BotaoTema />
         <IconButton aria-label="Buscar" icone={<Search size={20} aria-hidden />} onClick={abrirBusca} className="lg:hidden" />

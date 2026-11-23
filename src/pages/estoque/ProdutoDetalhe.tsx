@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowDownToLine, ArrowUpFromLine, BookOpen, FilePlus2, Pencil, Printer, ScanLine, Trash2, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, BookOpen, FilePlus2, Pencil, Printer, ScanLine, Trash2, X } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button, CabecalhoPagina, ChipsModelos, Confirmar, EstadoVazio, Input, Painel, Selo, toast } from '@/components/ui'
 import { EtiquetaQR } from '@/components/qr/EtiquetaQR'
@@ -11,6 +11,8 @@ import { ESTILO_TOOLTIP } from '@/lib/graficos'
 import { GRUPOS, ehExclusiva, pesoCubadoKg, situacaoEstoque } from './comum'
 import { FormularioPeca } from './FormularioPeca'
 import { MovimentoModal } from './MovimentoModal'
+import { TransferenciaModal } from './TransferenciaModal'
+import { estoqueDe, outraEmpresaTem, useFiltroEmpresa } from '@/lib/empresas'
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
@@ -42,6 +44,9 @@ export default function ProdutoDetalhe() {
   const [novoSerial, setNovoSerial] = useState('')
 
   const p = produtos.find((x) => x.id === id)
+  const { ids, multiplas } = useFiltroEmpresa()
+  const empresasGrupo = useStore((s) => s.empresas)
+  const [transferir, setTransferir] = useState(false)
 
   const historico = useMemo(() => movs.filter((m) => m.produtoId === id).sort((a, b) => b.data.localeCompare(a.data)), [movs, id])
 
@@ -82,7 +87,9 @@ export default function ProdutoDetalhe() {
     )
   }
 
-  const situ = situacaoEstoque(p)
+  const qtdVista = estoqueDe(p, ids)
+  const situ = situacaoEstoque({ ...p, estoque: qtdVista })
+  const outras = outraEmpresaTem(p, ids, empresasGrupo)
   const margem = p.preco > 0 ? ((p.preco - p.custo) / p.preco) * 100 : 0
   const modeloCatalogo = p.modelosCompativeis[0]
   const nomes = (ids: string[]) => ids.map((m) => modelos.find((x) => x.id === m)?.nome ?? m).join(', ')
@@ -110,7 +117,7 @@ export default function ProdutoDetalhe() {
           acoes={
             <>
               <Button variante="secundario" icone={<ArrowDownToLine size={16} />} onClick={() => setMov('entrada')}>Dar entrada</Button>
-              <Button variante="secundario" icone={<ArrowUpFromLine size={16} />} disabled={p.estoque === 0} onClick={() => setMov('saida')}>Dar saída</Button>
+              <Button variante="secundario" icone={<ArrowUpFromLine size={16} />} disabled={estoqueDe(p, ids) === 0} onClick={() => setMov('saida')}>Dar saída</Button>
               <Button variante="secundario" icone={<Pencil size={16} />} onClick={() => setEditando(true)}>Editar</Button>
             </>
           }
@@ -193,18 +200,34 @@ export default function ProdutoDetalhe() {
           </div>
 
           <div className="grid content-start gap-4">
+            <Painel titulo="Estoque por empresa" acoes={<Button tamanho="sm" variante="secundario" icone={<ArrowLeftRight size={15} />} onClick={() => setTransferir(true)}>Pedir transferência</Button>}>
+              <ul className="divide-y divide-linha">
+                {empresasGrupo.map((e) => {
+                  const q = p.estoquePorEmpresa?.[e.id] ?? 0
+                  return (
+                    <li key={e.id} className="flex min-h-10 items-center justify-between gap-2 py-1.5 text-sm">
+                      <span className="min-w-0 truncate">{e.nome} <span className="text-xs text-mata-suave">{e.nomeCurto}</span>{ids.includes(e.id) && ids.length < empresasGrupo.length && <span className="ml-1 text-xs text-lavoura-texto">em vista</span>}</span>
+                      <span className={`num shrink-0 font-semibold ${q === 0 ? 'text-mata-suave' : ''}`}>{numero(q)}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+              {outras.length > 0 && <p className="mt-2 rounded-campo bg-ceu-claro px-3 py-2 text-sm text-ceu-texto">{outras.map((o) => `${o.empresa.cidade} tem ${numero(o.qtd)}`).join(' · ')}. Dá para pedir transferência.</p>}
+            </Painel>
+
             <Painel titulo="Estoque">
-              <p className={`titulo num text-4xl ${situ === 'zerado' ? 'text-barro-texto' : situ === 'abaixo' ? 'text-ambar-texto' : ''}`}>{numero(p.estoque)}</p>
+              <p className={`titulo num text-4xl ${situ === 'zerado' ? 'text-barro-texto' : situ === 'abaixo' ? 'text-ambar-texto' : ''}`}>{numero(qtdVista)}</p>
+              {multiplas && <p className="text-xs text-mata-suave">nas empresas em vista; total do grupo {numero(p.estoque)}</p>}
               <p className="mt-1 text-sm text-mata-suave">Mínimo: <span className="num">{numero(p.estoqueMinimo)}</span> un.</p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-mata/[0.08]" aria-hidden>
-                <div className={`h-full ${situ === 'ok' ? 'bg-lavoura' : situ === 'abaixo' ? 'bg-ambar' : 'bg-barro'}`} style={{ width: `${Math.min(100, (p.estoque / Math.max(1, p.estoqueMinimo * 2)) * 100)}%` }} />
+                <div className={`h-full ${situ === 'ok' ? 'bg-lavoura' : situ === 'abaixo' ? 'bg-ambar' : 'bg-barro'}`} style={{ width: `${Math.min(100, (qtdVista / Math.max(1, p.estoqueMinimo * 2)) * 100)}%` }} />
               </div>
               <div className="mt-3">
                 {situ === 'zerado' && <Selo cor="vermelho">Zerado, repor</Selo>}
                 {situ === 'abaixo' && <Selo cor="ambar">Abaixo do mínimo</Selo>}
                 {situ === 'ok' && <Selo cor="verde">Estoque em dia</Selo>}
               </div>
-              <p className="num mt-3 text-sm text-mata-suave">Valor parado: {brl(p.custo * p.estoque)} (custo)</p>
+              <p className="num mt-3 text-sm text-mata-suave">Valor parado: {brl(p.custo * qtdVista)} (custo)</p>
             </Painel>
 
             <Painel titulo="Etiqueta QR">
@@ -261,6 +284,7 @@ export default function ProdutoDetalhe() {
       </div>
 
       <FormularioPeca aberta={editando} aoFechar={() => setEditando(false)} produto={p} />
+      <TransferenciaModal produto={p} aberto={transferir} aoFechar={() => setTransferir(false)} />
       <MovimentoModal produto={mov ? p : null} tipo={mov ?? 'entrada'} aoFechar={() => setMov(null)} />
       <Confirmar
         aberto={excluir} perigo titulo="Excluir esta peça?" texto="O cadastro e o histórico de movimentações ficam sem a peça. Isso não pode ser desfeito."

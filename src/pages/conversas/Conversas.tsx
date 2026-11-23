@@ -7,6 +7,7 @@ import {
 } from '@/components/ui'
 import { AIPensando } from '@/components/ia/AIPensando'
 import { useStore, novoId } from '@/store'
+import { SeloEmpresa, useFiltroEmpresa } from '@/lib/empresas'
 import { totalOrcamento } from '@/store/selectors'
 import { brl, dataCurta } from '@/lib/format'
 import { extrairPedido, resumirConversa, sugerirResposta } from '@/lib/ai/conversas'
@@ -125,7 +126,9 @@ function Contexto({ conversa }: { conversa: Conversa }) {
 export default function Conversas() {
   const navegar = useNavigate()
   const desktop = useDesktop()
-  const conversas = useStore((s) => s.conversas)
+  const todasConversas = useStore((s) => s.conversas)
+  const { filtrar } = useFiltroEmpresa()
+  const conversas = useMemo(() => filtrar(todasConversas), [todasConversas, filtrar])
   const clientes = useStore((s) => s.clientes)
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
@@ -211,7 +214,7 @@ export default function Conversas() {
     try {
       const pedido = await extrairPedido(ativa, useStore.getState())
       toast.info('Pedido lido da conversa. Revise o orçamento.')
-      navegar(`/orcamentos/novo?texto=${encodeURIComponent(pedido)}${cliente ? `&cliente=${cliente.id}` : ''}`)
+      navegar(`/orcamentos/novo?texto=${encodeURIComponent(pedido)}${cliente ? `&cliente=${cliente.id}` : ''}${ativa.empresaId ? `&empresa=${ativa.empresaId}` : ''}`)
     } catch {
       toast.erro('Não consegui ler o pedido da conversa')
     } finally { setCriandoOrc(false) }
@@ -276,7 +279,7 @@ export default function Conversas() {
                           <span className="num inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-lavoura px-1.5 text-xs font-semibold text-white" aria-label={`${c.naoLidas} não lidas`}>{c.naoLidas}</span>
                         )}
                       </span>
-                      <Selo cor={COR_ETIQUETA[c.etiqueta]} className="mt-1.5">{c.etiqueta}</Selo>
+                      <span className="mt-1.5 flex items-center gap-1.5"><Selo cor={COR_ETIQUETA[c.etiqueta]}>{c.etiqueta}</Selo><SeloEmpresa empresaId={c.empresaId} /></span>
                     </span>
                   </button>
                 </li>

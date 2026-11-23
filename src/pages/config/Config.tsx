@@ -14,10 +14,12 @@ import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
 import { usePapel } from '@/components/layout/nav'
 import { AbaChecklists } from './AbaChecklists'
 import { AbaPlanos } from './AbaPlanos'
+import { AbaEmpresas } from './AbaEmpresas'
 
-type Aba = 'empresa' | 'usuarios' | 'checklists' | 'planos' | 'offline' | 'ia' | 'dados'
+type Aba = 'empresa' | 'empresas' | 'usuarios' | 'checklists' | 'planos' | 'offline' | 'ia' | 'dados'
 const ABAS: { id: Aba; rotulo: string }[] = [
   { id: 'empresa', rotulo: 'Empresa' },
+  { id: 'empresas', rotulo: 'Empresas do grupo' },
   { id: 'usuarios', rotulo: 'Usuários' },
   { id: 'checklists', rotulo: 'Checklists' },
   { id: 'planos', rotulo: 'Planos de suporte' },
@@ -348,6 +350,7 @@ export default function Config() {
       <CabecalhoPagina titulo={gestor ? 'Configurações' : 'Meu perfil'} descricao={gestor ? 'Dados da empresa, usuários, uso sem internet e inteligência artificial.' : 'Troque de usuário para a demonstração e veja como o sistema funciona sem internet.'} />
       <Abas abas={abas} ativa={ativa} aoMudar={(id) => setAba(id as Aba)} className="mb-4" />
       {ativa === 'empresa' && <AbaEmpresa />}
+      {ativa === 'empresas' && <AbaEmpresas />}
       {ativa === 'usuarios' && <AbaUsuarios />}
       {ativa === 'checklists' && <AbaChecklists />}
       {ativa === 'planos' && <AbaPlanos />}

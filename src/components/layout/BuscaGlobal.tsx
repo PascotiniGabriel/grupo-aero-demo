@@ -8,6 +8,7 @@ import { nomeModelo } from '@/store/selectors'
 import { normalizar } from '@/lib/format'
 import { cx } from '@/components/ui'
 import { useLeitorQR } from '@/components/qr/LeitorQR'
+import { SeloEmpresa, estoqueDe, useFiltroEmpresa } from '@/lib/empresas'
 import { podeAcessar } from '@/lib/acesso'
 import { gruposDoPapel, usePapel } from './nav'
 
@@ -27,6 +28,7 @@ interface Resultado {
   icone: LucideIcon
   para?: string
   acao?: () => void
+  empresaId?: string
 }
 
 const LIMITE = 5
@@ -57,8 +59,11 @@ function Paleta({ fechar }: { fechar: () => void }) {
   const abrirQR = useLeitorQR((s) => s.abrir)
   const clientes = useStore((s) => s.clientes)
   const produtos = useStore((s) => s.produtos)
-  const ordens = useStore((s) => s.ordens)
-  const orcamentos = useStore((s) => s.orcamentos)
+  const todasOrdens = useStore((s) => s.ordens)
+  const todosOrcamentos = useStore((s) => s.orcamentos)
+  const { ids, filtrar } = useFiltroEmpresa()
+  const ordens = useMemo(() => filtrar(todasOrdens), [todasOrdens, filtrar])
+  const orcamentos = useMemo(() => filtrar(todosOrcamentos), [todosOrcamentos, filtrar])
   const equipamentos = useStore((s) => s.equipamentos)
   const papel = usePapel()
   const [q, setQ] = useState('')
@@ -84,18 +89,18 @@ function Paleta({ fechar }: { fechar: () => void }) {
       out.push({ id: c.id, grupo: 'Clientes', titulo: c.nome, detalhe: `${c.cidade} - ${c.uf}`, icone: Users, para: `/clientes/${c.id}` }))
 
     if (ok('/estoque')) produtos.filter((p) => tem(p.nome, p.sku, p.codigoFabricante, ...p.seriais)).slice(0, LIMITE).forEach((p) =>
-      out.push({ id: p.id, grupo: 'Peças e produtos', titulo: p.nome, detalhe: `${p.sku}, ${p.estoque} em estoque`, icone: Package, para: `/estoque/${p.id}` }))
+      out.push({ id: p.id, grupo: 'Peças e produtos', titulo: p.nome, detalhe: `${p.sku}, ${estoqueDe(p, ids)} em estoque`, icone: Package, para: `/estoque/${p.id}` }))
 
     if (ok('/os')) ordens.filter((o) => {
       const eq = equipamentos.find((e) => e.id === o.equipamentoId)
       return tem(o.numero, `os ${o.numero}`, nomeCliente(o.clienteId), eq?.serial)
     }).slice(0, LIMITE).forEach((o) => {
       const eq = equipamentos.find((e) => e.id === o.equipamentoId)
-      out.push({ id: o.id, grupo: 'Ordens de serviço', titulo: `OS ${o.numero}`, detalhe: `${nomeCliente(o.clienteId)}${eq ? `, ${nomeModelo(eq.modeloId)}` : ''}`, icone: Wrench, para: `/os/${o.id}` })
+      out.push({ id: o.id, grupo: 'Ordens de serviço', empresaId: o.empresaId, titulo: `OS ${o.numero}`, detalhe: `${nomeCliente(o.clienteId)}${eq ? `, ${nomeModelo(eq.modeloId)}` : ''}`, icone: Wrench, para: `/os/${o.id}` })
     })
 
     if (ok('/orcamentos')) orcamentos.filter((o) => tem(o.numero, `orcamento ${o.numero}`, nomeCliente(o.clienteId))).slice(0, LIMITE).forEach((o) =>
-      out.push({ id: o.id, grupo: 'Orçamentos', titulo: `Orçamento ${o.numero}`, detalhe: nomeCliente(o.clienteId), icone: FileText, para: `/orcamentos/${o.id}` }))
+      out.push({ id: o.id, empresaId: o.empresaId, grupo: 'Orçamentos', titulo: `Orçamento ${o.numero}`, detalhe: nomeCliente(o.clienteId), icone: FileText, para: `/orcamentos/${o.id}` }))
 
     if (ok('/clientes')) equipamentos.filter((e) => tem(e.serial, e.apelido, nomeModelo(e.modeloId))).slice(0, LIMITE).forEach((e) =>
       out.push({ id: e.id, grupo: 'Drones de clientes', titulo: `${nomeModelo(e.modeloId)}${e.apelido ? ` (${e.apelido})` : ''}`, detalhe: `${e.serial}, ${nomeCliente(e.clienteId)}`, icone: Plane, para: `/clientes/${e.clienteId}` }))
@@ -103,7 +108,7 @@ function Paleta({ fechar }: { fechar: () => void }) {
     out.push(...paginas.filter((p) => tem(p.titulo, p.detalhe)))
     if (tem('ler qr code')) out.push(lerQR)
     return out
-  }, [q, clientes, produtos, ordens, orcamentos, equipamentos, abrirQR, papel])
+  }, [q, clientes, produtos, ordens, orcamentos, equipamentos, abrirQR, papel, ids])
 
   useEffect(() => { setAtivo(0) }, [q])
   useEffect(() => {
@@ -163,6 +168,7 @@ function Paleta({ fechar }: { fechar: () => void }) {
                     <span className="font-medium">{r.titulo}</span>
                     {r.detalhe && <span className="ml-2 text-mata-suave">{r.detalhe}</span>}
                   </span>
+                  {r.empresaId && <SeloEmpresa empresaId={r.empresaId} />}
                   {i === ativo && <CornerDownLeft size={14} className="hidden shrink-0 text-mata-suave sm:block" aria-hidden />}
                 </button>
               </div>

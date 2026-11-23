@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, FilePlus2, Eye, FileText, Printer } from 'lucide-react'
 import { Button, CabecalhoPagina, CampoBusca, ChipsModelos, EstadoVazio, Painel, Selo, cx } from '@/components/ui'
 import { useStore } from '@/store'
+import { estoqueDe, outraEmpresaTem, useFiltroEmpresa } from '@/lib/empresas'
 import { brl, normalizar, numero, peso } from '@/lib/format'
 import type { GrupoDiagrama, Produto } from '@/types'
 import { GRUPOS, ORDEM_GRUPOS, ehExclusiva } from '../estoque/comum'
@@ -18,6 +19,8 @@ export default function Catalogo() {
   const [params, setParams] = useSearchParams()
   const modelos = useStore((s) => s.modelos)
   const produtos = useStore((s) => s.produtos)
+  const { ids: idsEmp } = useFiltroEmpresa()
+  const empresasGrupo = useStore((s) => s.empresas)
 
   const [busca, setBusca] = useState('')
   const [realce, setRealce] = useState<GrupoDiagrama | null>(null)
@@ -92,7 +95,9 @@ export default function Catalogo() {
 
   const linhaPeca = (p: Produto, mostrarGrupo = false) => {
     const exclusiva = ehExclusiva(p)
-    const baixo = p.estoque === 0 ? 'vermelho' : p.estoque < p.estoqueMinimo ? 'ambar' : 'verde'
+    const qtd = estoqueDe(p, idsEmp)
+    const outra = outraEmpresaTem(p, idsEmp, empresasGrupo)[0]
+    const baixo = qtd === 0 ? 'vermelho' : qtd < p.estoqueMinimo ? 'ambar' : 'verde'
     return (
       <li
         key={p.id}
@@ -107,7 +112,8 @@ export default function Catalogo() {
           <p className="num shrink-0 font-semibold">{brl(p.preco)}</p>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-          <Selo cor={baixo}>{p.estoque === 0 ? 'Sem estoque' : `${numero(p.estoque)} em estoque`}</Selo>
+          <Selo cor={baixo}>{qtd === 0 ? 'Sem estoque' : `${numero(qtd)} em estoque`}</Selo>
+          {outra && <button type="button" className="min-h-8 text-ceu-texto hover:underline" onClick={() => navegar(`/estoque/${p.id}`)}>{outra.empresa.cidade} tem {outra.qtd} — pedir transferência</button>}
           <span className="num text-mata-suave">{peso(p.pesoG)}</span>
           {exclusiva ? <Selo cor="ambar">Só serve no {modelo.nome}</Selo> : p.modelosCompativeis.length > 1 ? <Selo cor="verde">Compartilhada</Selo> : <Selo>Universal</Selo>}
           {mostrarGrupo && p.grupo && (

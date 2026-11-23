@@ -6,6 +6,9 @@ export const COR_STATUS = { rascunho: 'neutro', enviada: 'azul', respondida: 'am
 export const produtosDe = (c: Cotacao, r: RespostaCotacao) =>
   c.itens.reduce((s, it, i) => s + (r.precos[i] || 0) * it.quantidade, 0)
 export const totalDe = (c: Cotacao, r: RespostaCotacao) => produtosDe(c, r) + (r.frete || 0) + (r.outrasDespesas || 0)
+/** Peso total em kg (0 quando a resposta não informou pesos). */
+export const pesoTotalDe = (c: Cotacao, r: RespostaCotacao) =>
+  c.itens.reduce((s, it, i) => s + (r.pesos?.[i] || 0) * it.quantidade, 0)
 /** Quantos itens o fornecedor não cotou (preço 0). */
 export const faltantes = (c: Cotacao, r: RespostaCotacao) => c.itens.filter((_, i) => !(r.precos[i] > 0)).length
 

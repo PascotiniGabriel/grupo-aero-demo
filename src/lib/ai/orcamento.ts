@@ -1,4 +1,5 @@
-import type { Cliente, Equipamento, ItemComercial, ModeloDrone, Produto, Servico } from '@/types'
+import type { Cliente, Equipamento, EmpresaGrupo, ItemComercial, ModeloDrone, Produto, Servico } from '@/types'
+import { estoqueDe, outraEmpresaTem } from '../empresas'
 import { buscarProdutos, chamarGemini, esperar, iaReal, similaridade } from './index'
 import { normalizar } from '../format'
 
@@ -8,6 +9,9 @@ export interface DadosPedido {
   clientes: Cliente[]
   equipamentos: Equipamento[]
   modelos: ModeloDrone[]
+  /** Empresa do orçamento: a disponibilidade é checada no estoque dela. */
+  empresaId?: string
+  empresas?: EmpresaGrupo[]
 }
 
 export interface PedidoInterpretado {
@@ -54,13 +58,13 @@ export function compativel(p: Produto, modeloId?: string): boolean | undefined {
 }
 
 /** Busca unificada (peças, serviços, drones). Com modelo, as compatíveis vêm primeiro. */
-export function buscarCatalogo(texto: string, dados: Pick<DadosPedido, 'produtos' | 'servicos'>, modeloId?: string, limite = 10): OpcaoItem[] {
+export function buscarCatalogo(texto: string, dados: Pick<DadosPedido, 'produtos' | 'servicos'>, modeloId?: string, limite = 10, empresaIds?: string[]): OpcaoItem[] {
   const q = texto.trim()
   let prods: Produto[]
   if (!q) prods = modeloId ? dados.produtos.filter((p) => p.tipo !== 'drone' && p.modelosCompativeis.includes(modeloId)).slice(0, limite) : []
   else prods = buscarProdutos(q, dados.produtos, 40)
   const opcoes: OpcaoItem[] = prods.map((p) => ({
-    chave: p.id, tipo: p.tipo === 'drone' ? 'drone' : 'peca', nome: p.nome, preco: p.preco, estoque: p.estoque, produto: p, compat: compativel(p, modeloId),
+    chave: p.id, tipo: p.tipo === 'drone' ? 'drone' : 'peca', nome: p.nome, preco: p.preco, estoque: empresaIds ? estoqueDe(p, empresaIds) : p.estoque, produto: p, compat: compativel(p, modeloId),
   }))
   if (modeloId) {
     const rank = (o: OpcaoItem) => (o.compat === true ? 0 : o.compat === undefined ? 1 : 2)
@@ -330,6 +334,18 @@ function simulado(texto: string, dados: DadosPedido, contexto?: ContextoPedido):
   if (descPct > 0) r.desconto = Math.round(subtotal * descPct) / 100
   else if (descValor > 0) r.desconto = descValor
   if (obs.length) r.observacoes = obs.join(' ')
+  if (dados.empresaId) {
+    const emp = dados.empresas?.find((e) => e.id === dados.empresaId)
+    for (const i of r.itens) {
+      const p = i.produtoId ? dados.produtos.find((x) => x.id === i.produtoId) : undefined
+      if (!p) continue
+      const tem = estoqueDe(p, [dados.empresaId])
+      if (tem >= i.quantidade) continue
+      const outras = outraEmpresaTem(p, [dados.empresaId], dados.empresas ?? [])
+      const onde = emp ? ` em ${emp.cidade}` : ''
+      r.avisos.push(`${p.nome}: ${tem > 0 ? `só ${tem} em estoque${onde}` : `sem estoque${onde}`}.${outras.length ? ` ${outras.map((o) => `${o.empresa.cidade} tem ${o.qtd}`).join(', ')} — peça transferência.` : ''}`)
+    }
+  }
   return r
 }
 

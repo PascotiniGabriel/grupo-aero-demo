@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import { Check, Plus } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  Abas, Button, Campo, CampoBusca, CabecalhoPagina, EstadoVazio, Gaveta, Indicador, Input, Painel, Select, SeloStatus, Tabela, cx, statusLancamento, toast,
+  Abas, BuscaCliente, Button, Campo, CampoBusca, CabecalhoPagina, EstadoVazio, Gaveta, Indicador, Input, Painel, Select, SeloStatus, Tabela, cx, statusLancamento, toast,
   type Coluna,
 } from '@/components/ui'
 import { useStore, novoId } from '@/store'
 import { porId } from '@/store/selectors'
 import { brl, dataCurta, normalizar, numero } from '@/lib/format'
 import { ESTILO_TOOLTIP } from '@/lib/graficos'
+import { EMPRESA_PRINCIPAL_ID, SelectEmpresa, SeloEmpresa, empresaPadraoParaNovo, useFiltroEmpresa } from '@/lib/empresas'
 import type { Lancamento } from '@/types'
 
 type Aba = 'receber' | 'pagar' | 'resultado'
@@ -23,9 +24,11 @@ const paraISO = (data: string) => new Date(`${data}T12:00:00`).toISOString()
 const hojeInput = () => new Date().toISOString().slice(0, 10)
 
 export default function Financeiro() {
-  const lancamentos = useStore((s) => s.lancamentos)
+  const todos = useStore((s) => s.lancamentos)
   const clientes = useStore((s) => s.clientes)
   const salvar = useStore((s) => s.salvar)
+  const { filtrar, empresas, multiplas } = useFiltroEmpresa()
+  const lancamentos = useMemo(() => filtrar(todos), [todos, filtrar])
   const [aba, setAba] = useState<Aba>('receber')
   const [situacao, setSituacao] = useState<Situacao>('todos')
   const [busca, setBusca] = useState('')
@@ -40,6 +43,15 @@ export default function Financeiro() {
     const aPagar = soma('pagar', (v) => v >= hoje && v < lim)
     return { aReceber, aPagar, saldo: aReceber - aPagar, vencReceber: soma('receber', (v) => v < hoje), vencPagar: soma('pagar', (v) => v < hoje) }
   }, [lancamentos])
+
+  const porEmpresa = useMemo(() => {
+    const hoje = inicioHoje(); const lim = hoje + 31 * DIA
+    return empresas.map((e) => {
+      const meus = lancamentos.filter((l) => (l.empresaId ?? EMPRESA_PRINCIPAL_ID) === e.id)
+      const soma = (tp: Lancamento['tipo']) => meus.filter((l) => !l.pagoEm && l.tipo === tp && t(l.vencimento) >= hoje && t(l.vencimento) < lim).reduce((s, l) => s + l.valor, 0)
+      return { id: e.id, nome: e.nome, receber: soma('receber'), pagar: soma('pagar') }
+    })
+  }, [empresas, lancamentos])
 
   const fluxo = useMemo(() => {
     const hoje = new Date(); const out: { mes: string; entradas: number; saidas: number; projecao?: boolean }[] = []
@@ -86,7 +98,7 @@ export default function Financeiro() {
   }
 
   const colunas: Coluna<Lancamento>[] = [
-    { id: 'desc', titulo: 'Descrição', principal: true, valor: (l) => l.descricao, render: (l) => <span>{l.descricao}<span className="block text-xs text-mata-suave">{l.categoria} · {l.forma}</span></span> },
+    { id: 'desc', titulo: 'Descrição', principal: true, valor: (l) => l.descricao, render: (l) => <span>{l.descricao} <SeloEmpresa empresaId={l.empresaId} className="ml-1 align-middle" /><span className="block text-xs text-mata-suave">{l.categoria} · {l.forma}</span></span> },
     { id: 'venc', titulo: 'Vencimento', valor: (l) => l.vencimento, render: (l) => <span className="num">{dataCurta(l.vencimento)}</span> },
     { id: 'valor', titulo: 'Valor', alinhar: 'direita', valor: (l) => l.valor, render: (l) => <span className="num font-medium">{brl(l.valor)}</span> },
     { id: 'sit', titulo: 'Situação', valor: (l) => statusLancamento(l), render: (l) => <SeloStatus tipo="lancamento" status={statusLancamento(l)} /> },
@@ -110,6 +122,24 @@ export default function Financeiro() {
         <Indicador rotulo="Saldo previsto" valor={brl(resumo.saldo)} cor={resumo.saldo < 0 ? 'vermelho' : 'verde'} detalhe="receber menos pagar" />
         <Indicador rotulo="Vencidos" valor={brl(resumo.vencReceber + resumo.vencPagar)} cor={resumo.vencReceber + resumo.vencPagar ? 'vermelho' : undefined} detalhe={`receber ${brl(resumo.vencReceber)} · pagar ${brl(resumo.vencPagar)}`} />
       </div>
+
+      {multiplas && (
+        <Painel titulo="Por empresa" acoes={<span className="text-xs text-mata-suave">em aberto, próximos 30 dias</span>} className="mt-4" semPadding>
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-xs text-mata-suave"><th className="px-4 py-2 font-normal">Empresa</th><th className="px-4 py-2 text-right font-normal">A receber</th><th className="px-4 py-2 text-right font-normal">A pagar</th><th className="px-4 py-2 text-right font-normal">Saldo</th></tr></thead>
+            <tbody>
+              {porEmpresa.map((p) => (
+                <tr key={p.id} className="border-t border-linha">
+                  <td className="px-4 py-2.5">{p.nome}</td>
+                  <td className="num px-4 py-2.5 text-right">{brl(p.receber)}</td>
+                  <td className="num px-4 py-2.5 text-right">{brl(p.pagar)}</td>
+                  <td className={cx('num px-4 py-2.5 text-right font-medium', p.receber - p.pagar < 0 ? 'text-barro-texto' : 'text-lavoura-texto')}>{brl(p.receber - p.pagar)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Painel>
+      )}
 
       <Painel titulo="Fluxo de caixa" acoes={<span className="text-xs text-mata-suave">últimos 6 meses e projeção</span>} className="mt-4">
         <div className="h-64" role="img" aria-label="Entradas e saídas por mês, com projeção dos próximos 30 dias">
@@ -219,6 +249,8 @@ function NovoLancamento({ tipoInicial, aoFechar }: { tipoInicial: 'receber' | 'p
   const [clienteId, setClienteId] = useState('')
   const [jaPago, setJaPago] = useState(false)
   const [tentou, setTentou] = useState(false)
+  const { multiplas } = useFiltroEmpresa()
+  const [empresaId, setEmpresaId] = useState(() => empresaPadraoParaNovo())
 
   const v = Number(valor.replace(',', '.'))
   const erroDesc = !descricao.trim(); const erroValor = !(v > 0)
@@ -227,7 +259,7 @@ function NovoLancamento({ tipoInicial, aoFechar }: { tipoInicial: 'receber' | 'p
     setTentou(true)
     if (erroDesc || erroValor || !venc) return
     salvar('lancamentos', {
-      id: novoId('lan'), tipo, descricao: descricao.trim(), categoria, valor: Math.round(v * 100) / 100, vencimento: paraISO(venc), forma,
+      id: novoId('lan'), tipo, descricao: descricao.trim(), categoria, valor: Math.round(v * 100) / 100, vencimento: paraISO(venc), forma, empresaId,
       clienteId: tipo === 'receber' && clienteId ? clienteId : undefined, pagoEm: jaPago ? new Date().toISOString() : undefined,
     })
     toast.sucesso('Lançamento criado')
@@ -240,6 +272,7 @@ function NovoLancamento({ tipoInicial, aoFechar }: { tipoInicial: 'receber' | 'p
       rodape={<><Button variante="fantasma" onClick={aoFechar}>Cancelar</Button><Button onClick={confirmar}>Salvar lançamento</Button></>}
     >
       <div className="space-y-4">
+        {multiplas && <Campo rotulo="Empresa"><SelectEmpresa valor={empresaId} aoMudar={setEmpresaId} /></Campo>}
         <Campo rotulo="Tipo">
           <Select value={tipo} onChange={(e) => { const n = e.target.value as 'receber' | 'pagar'; setTipo(n); setCategoria(CATEGORIAS[n][0]) }}>
             <option value="receber">A receber</option><option value="pagar">A pagar</option>
@@ -260,10 +293,7 @@ function NovoLancamento({ tipoInicial, aoFechar }: { tipoInicial: 'receber' | 'p
         </div>
         {tipo === 'receber' && (
           <Campo rotulo="Cliente">
-            <Select value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-              <option value="">Sem cliente</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </Select>
+            <BuscaCliente opcional valor={clienteId} aoMudar={setClienteId} />
           </Campo>
         )}
         <label className="flex min-h-10 items-center gap-2 text-sm">

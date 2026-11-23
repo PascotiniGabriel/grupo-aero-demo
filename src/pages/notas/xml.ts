@@ -6,7 +6,7 @@ export const somarDias = (n: number) => { const d = new Date(); d.setHours(12, 0
 
 export interface ItemXML { cProd: string; xProd: string; ncm: string; qtd: number; vUn: number }
 export interface NotaXML {
-  emitente: string; cnpj: string; numero: number; serie: string; chave: string; emissao: string
+  emitente: string; cnpj: string; destCnpj: string; numero: number; serie: string; chave: string; emissao: string
   pesoKg: number; itens: ItemXML[]
 }
 
@@ -27,6 +27,7 @@ export function lerNFe(texto: string): NotaXML {
   return {
     emitente: (emit && pegar(emit, 'xNome')) || 'Fornecedor sem nome',
     cnpj: (emit && pegar(emit, 'CNPJ')) || '',
+    destCnpj: (doc.getElementsByTagName('dest')[0] && pegar(doc.getElementsByTagName('dest')[0], 'CNPJ')) || '',
     numero: Number(pegar(doc, 'nNF')) || 0,
     serie: pegar(doc, 'serie') || '1',
     chave: chave.length === 44 ? chave : chaveAleatoria(),

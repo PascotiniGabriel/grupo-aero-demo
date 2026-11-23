@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ListChecks, Plus, QrCode, X } from 'lucide-react'
 import { novoId, useStore } from '@/store'
-import { Button, Campo, Gaveta, Input, Select, toast } from '@/components/ui'
+import { BuscaCliente, Button, Campo, Gaveta, Input, Select, toast } from '@/components/ui'
 import { useLeitorQR, localizarCodigo } from '@/components/qr/LeitorQR'
 import { nomeModelo } from '@/store/selectors'
 import { agruparChecklist, montarChecklist } from '@/lib/checklist'
 import { brl } from '@/lib/format'
 import { diasAFrente } from '@/data/seed'
+import { SelectEmpresa, empresaPadraoParaNovo, useFiltroEmpresa } from '@/lib/empresas'
 import { CampoDitado } from './CampoDitado'
 import { EditorLocal, CartaoLocal } from './LocalUI'
 import type { Compromisso, ItemComercial, Local, OrdemServico } from '@/types'
@@ -56,6 +57,8 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
   const [erro, setErro] = useState('')
   const [atendimento, setAtendimento] = useState<'oficina' | 'campo'>('oficina')
   const [local, setLocal] = useState<Local | undefined>()
+  const { multiplas } = useFiltroEmpresa()
+  const [empresaId, setEmpresaId] = useState(() => empresaPadraoParaNovo())
 
   useEffect(() => {
     if (!aberta) return
@@ -64,7 +67,7 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
     const ag = agendaPadrao()
     setTecnicoId(tecnicos[0]?.id ?? ''); setDia(ag.dia); setHIni(ag.ini); setHFim(ag.fim)
     setServicoIds([]); setExcluidos([]); setAvulsos([]); setNovoAvulso('')
-    setPrevisao(diaISO(diasAFrente(7))); setAtendimento('oficina'); setLocal(undefined)
+    setPrevisao(diaISO(diasAFrente(7))); setAtendimento('oficina'); setLocal(undefined); setEmpresaId(empresaPadraoParaNovo())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberta, equipamentoInicial])
 
@@ -111,14 +114,14 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
       tecnico: tec.nome, relatoCliente: relato.trim(), diagnostico: '', fotos: [],
       itens: servicoIds.flatMap((id): ItemComercial[] => { const sv = servicos.find((x) => x.id === id); return sv ? [{ id: novoId('it'), tipo: 'servico', servicoId: sv.id, descricao: sv.nome, quantidade: 1, valorUnit: sv.preco }] : [] }),
       historico: [{ data: agora, texto: atendimento === 'campo' ? 'OS aberta para atendimento em campo' : 'OS aberta' }],
-      atendimento, local: atendimento === 'campo' ? local : undefined,
+      atendimento, local: atendimento === 'campo' ? local : undefined, empresaId,
     }
     salvar('ordens', os)
     const campo = atendimento === 'campo'
     const cmp: Compromisso = {
       id: novoId('cmp'), tecnicoId: tec.id, tipo: campo ? 'atendimento_campo' : 'manutencao_oficina',
       titulo: `${campo ? 'Atendimento em campo' : 'Manutenção na oficina'}, OS ${numero}`,
-      inicio: inicio.toISOString(), fim: fim.toISOString(), osId: os.id, clienteId, local: campo ? local : undefined, status: 'agendado',
+      inicio: inicio.toISOString(), fim: fim.toISOString(), osId: os.id, clienteId, local: campo ? local : undefined, status: 'agendado', empresaId,
       checklist: [
         ...montados.filter((m) => !excluidos.includes(chaveItem(m.texto))),
         ...avulsos.map((texto) => ({ texto, feito: false })),
@@ -136,11 +139,9 @@ export function NovaOSGaveta({ aberta, aoFechar, equipamentoInicial, aoCriar }: 
     >
       <div className="space-y-4">
         <Button variante="secundario" bloco icone={<QrCode size={18} />} onClick={lerQR}>Ler QR do drone</Button>
+        {multiplas && <Campo rotulo="Empresa"><SelectEmpresa valor={empresaId} aoMudar={setEmpresaId} /></Campo>}
         <Campo rotulo="Cliente" obrigatorio>
-          <Select value={clienteId} onChange={(e) => { setClienteId(e.target.value); setEquipId(''); setErro('') }}>
-            <option value="">Escolha o cliente</option>
-            {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </Select>
+          <BuscaCliente valor={clienteId} aoMudar={(id) => { setClienteId(id); setEquipId(''); setErro('') }} />
         </Campo>
         <Campo rotulo="Drone" obrigatorio ajuda={clienteId && dronesDoCliente.length === 0 ? 'Este cliente ainda não tem drone cadastrado.' : undefined}>
           <Select value={equipId} onChange={(e) => { setEquipId(e.target.value); setErro('') }} disabled={!clienteId}>

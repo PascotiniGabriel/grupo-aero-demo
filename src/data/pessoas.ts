@@ -14,11 +14,11 @@ export const EMPRESA: Empresa = {
 }
 
 export const USUARIOS: Usuario[] = [
-  { id: 'usr-1', nome: 'Marina Albuquerque', papel: 'Gestor' },
-  { id: 'usr-2', nome: 'Diego Santos', papel: 'Vendas' },
-  { id: 'usr-3', nome: 'Tiago Ferreira', papel: 'Técnico' },
-  { id: 'usr-4', nome: 'Lucas Brandão', papel: 'Técnico' },
-  { id: 'usr-5', nome: 'Paula Nogueira', papel: 'Estoque' },
+  { id: 'usr-1', nome: 'Marina Albuquerque', papel: 'Gestor', empresaIds: ['emp-ba', 'emp-sm', 'emp-ca'] },
+  { id: 'usr-2', nome: 'Diego Santos', papel: 'Vendas', empresaIds: ['emp-ba', 'emp-sm'] },
+  { id: 'usr-3', nome: 'Tiago Ferreira', papel: 'Técnico', empresaIds: ['emp-ba'] },
+  { id: 'usr-4', nome: 'Lucas Brandão', papel: 'Técnico', empresaIds: ['emp-sm', 'emp-ca'] },
+  { id: 'usr-5', nome: 'Paula Nogueira', papel: 'Estoque', empresaIds: ['emp-ba', 'emp-sm', 'emp-ca'] },
 ]
 
 const SERVICOS_BASE: Servico[] = [

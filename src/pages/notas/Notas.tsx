@@ -6,13 +6,21 @@ import {
 import { useStore } from '@/store'
 import { porId } from '@/store/selectors'
 import { brl, dataCurta, normalizar, numero } from '@/lib/format'
+import { SeloEmpresa, useEmpresaGrupo, useFiltroEmpresa } from '@/lib/empresas'
 import type { NotaFiscal } from '@/types'
 import EmitirNota from './EmitirNota'
 import ImportarXML from './ImportarXML'
 import { formatarChave } from './xml'
 
+function EmpresaNome({ id }: { id?: string }) {
+  const e = useEmpresaGrupo(id)
+  return <>{e ? `${e.nome} · ${e.cnpj}` : '-'}</>
+}
+
 export default function Notas() {
-  const notas = useStore((s) => s.notas)
+  const todasNotas = useStore((s) => s.notas)
+  const { filtrar } = useFiltroEmpresa()
+  const notas = useMemo(() => filtrar(todasNotas), [todasNotas, filtrar])
   const clientes = useStore((s) => s.clientes)
   const [aba, setAba] = useState<'saida' | 'entrada'>('saida')
   const [situacao, setSituacao] = useState('todas')
@@ -30,7 +38,7 @@ export default function Notas() {
   const nota = notas.find((n) => n.id === aberta)
 
   const colunas: Coluna<NotaFiscal>[] = [
-    { id: 'num', titulo: 'Nota', principal: true, valor: (n) => n.numero, render: (n) => <span><span className="num font-medium">{n.modelo} {n.numero}</span><span className="block text-xs text-mata-suave">{n.natureza}</span></span> },
+    { id: 'num', titulo: 'Nota', principal: true, valor: (n) => n.numero, render: (n) => <span><span className="num font-medium">{n.modelo} {n.numero}</span> <SeloEmpresa empresaId={n.empresaId} className="ml-1 align-middle" /><span className="block text-xs text-mata-suave">{n.natureza}</span></span> },
     { id: 'parte', titulo: aba === 'saida' ? 'Cliente' : 'Fornecedor', valor: nomeParte, render: nomeParte },
     { id: 'data', titulo: 'Data', valor: (n) => n.data, render: (n) => <span className="num">{dataCurta(n.data)}</span> },
     { id: 'valor', titulo: 'Valor', alinhar: 'direita', valor: (n) => n.valor, render: (n) => <span className="num font-medium">{brl(n.valor)}</span> },
@@ -78,6 +86,7 @@ export default function Notas() {
               <div><dt className="text-xs text-mata-suave">{nota.tipo === 'saida' ? 'Cliente' : 'Fornecedor'}</dt><dd>{nomeParte(nota)}</dd></div>
               <div><dt className="text-xs text-mata-suave">Natureza da operação</dt><dd>{nota.natureza}</dd></div>
               <div><dt className="text-xs text-mata-suave">Valor total</dt><dd className="num font-semibold">{brl(nota.valor)}</dd></div>
+              <div><dt className="text-xs text-mata-suave">Empresa</dt><dd><SeloEmpresa empresaId={nota.empresaId} /> <EmpresaNome id={nota.empresaId} /></dd></div>
               {nota.origem && <div><dt className="text-xs text-mata-suave">Origem</dt><dd>{nota.origem}</dd></div>}
             </dl>
             <div>

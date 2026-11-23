@@ -1,10 +1,11 @@
 // IA da tela Conversas (WhatsApp): sugerir resposta, resumir e extrair o pedido do cliente.
 // Cada função tem o caminho simulado (lógica local sobre os dados da store) e o caminho Gemini.
-import type { Conversa, Dados, OrdemServico } from '@/types'
+import type { Conversa, Dados, OrdemServico, Produto } from '@/types'
 import { useStore } from '@/store'
 import { totalOrcamento } from '@/store/selectors'
 import { brl, dataCurta, normalizar, numero, peso } from '../format'
 import { chamarGemini, esperar, iaReal } from './index'
+import { EMPRESA_PRINCIPAL_ID, estoqueDe, outraEmpresaTem } from '../empresas'
 import { citados, interpretarPedido, responderSimulado, textoSimples } from './assistente'
 
 const dadosAtuais = (): Dados => useStore.getState()
@@ -38,6 +39,15 @@ function somarDiasUteis(n: number): Date {
   return d
 }
 
+/** Estoque na empresa da conversa e, quando falta lá, o aviso de que outra empresa do grupo tem. */
+function dispEmpresa(p: Produto, conv: Conversa, d: Dados): { qtd: number; outras: string } {
+  const id = conv.empresaId ?? EMPRESA_PRINCIPAL_ID
+  const qtd = estoqueDe(p, [id])
+  const o = qtd > 0 ? [] : outraEmpresaTem(p, [id], d.empresas ?? [])
+  return { qtd, outras: o.length ? ` ${juntarTxt(o.map((x) => `${x.empresa.cidade} tem ${x.qtd}`))}, posso pedir a transferência.` : '' }
+}
+const juntarTxt = (l: string[]) => (l.length <= 1 ? (l[0] ?? '') : `${l.slice(0, -1).join(', ')} e ${l[l.length - 1]}`)
+
 const hoje0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime() }
 
 // ------------------------------------------------------------------ sugerir resposta
@@ -69,7 +79,7 @@ function respostaStatus(conv: Conversa, d: Dados, saud: string, todo: string): s
     const prazo = os.status === 'pronto' ? 'Já pode retirar na oficina.' : atraso > 0 ? `O prazo previsto era ${dataCurta(os.previsao)} e estamos ${atraso} ${atraso === 1 ? 'dia' : 'dias'} acima dele; vou priorizar.` : `A previsão de entrega é ${dataCurta(os.previsao)}.`
     const ultimo = os.historico[os.historico.length - 1]?.texto
     const peca = os.itens.filter((i) => i.tipo === 'peca' && i.produtoId).map((i) => d.produtos.find((p) => p.id === i.produtoId)).find((p) => p)
-    const pecaTxt = peca ? ` A peça (${peca.nome.split(' (')[0]}) ${peca.estoque > 0 ? 'está em estoque' : 'está em falta e já pedi ao fornecedor'}.` : ''
+    const pecaTxt = peca ? ` A peça (${peca.nome.split(' (')[0]}) ${dispEmpresa(peca, conv, d).qtd > 0 ? 'está em estoque' : 'está em falta e já pedi ao fornecedor'}.${dispEmpresa(peca, conv, d).outras}` : ''
     const outras = abertas.length > 1 ? ` O cliente tem mais ${abertas.length - 1} OS em aberto.` : ''
     void outras
     return `${saud} ${urgente}Sobre a OS ${os.numero}${modelo ? ` do ${modelo}` : ''}: está ${ROTULO_OS[os.status]} com o técnico ${os.tecnico}. ${prazo}${ultimo ? ` Último andamento: ${ultimo.replace(/\.$/, '')}.` : ''}${pecaTxt} Aviso aqui assim que houver novidade.`.replace(/\s+/g, ' ').trim()
@@ -102,7 +112,8 @@ function respostaPedido(conv: Conversa, d: Dados, saud: string, todo: string): s
   const linhas = itens.map((i) => {
     const sub = i.quantidade * i.produto.preco
     total += sub; pesoTotal += i.quantidade * i.produto.pesoG
-    const disp = i.produto.estoque >= i.quantidade ? `${numero(i.produto.estoque)} em estoque` : i.produto.estoque > 0 ? `só ${numero(i.produto.estoque)} em estoque, o restante sob encomenda` : 'sem estoque, sob encomenda'
+    const de = dispEmpresa(i.produto, conv, d)
+    const disp = (de.qtd >= i.quantidade ? `${numero(de.qtd)} em estoque` : de.qtd > 0 ? `só ${numero(de.qtd)} em estoque, o restante sob encomenda` : 'sem estoque, sob encomenda') + (de.outras ? `;${de.outras.replace(/\.$/, '')}` : '')
     return `- ${i.quantidade} × ${i.produto.nome}: ${brl(i.produto.preco)} cada, ${brl(sub)} (${disp})`
   })
   const prazo = /ate\s+(segunda|terca|quarta|quinta|sexta|sabado|amanha|domingo)/.exec(normalizar(todo))
@@ -114,7 +125,7 @@ function juntar(l: string[]): string {
   return l.length <= 1 ? (l[0] ?? '') : `${l.slice(0, -1).join(', ')} e ${l[l.length - 1]}`
 }
 
-function respostaTecnica(recente: string, todo: string, d: Dados, saud: string): string | null {
+function respostaTecnica(conv: Conversa, recente: string, todo: string, d: Dados, saud: string): string | null {
   const q = normalizar(recente)
   const cue = /(serve|servem|compativel|encaixa|cabe)/.test(q) || /(^|\. |\? )e (o|a|os|as) (parafuso|helice|motor|bico|bomba|esc|bateria|tanque|radar)/.test(q)
   if (!cue) return null
@@ -131,7 +142,8 @@ function respostaTecnica(recente: string, todo: string, d: Dados, saud: string):
   }
   const p = produtos[0]
   const nomes = juntar(p.modelosCompativeis.map((m) => d.modelos.find((x) => x.id === m)?.nome ?? m))
-  const estoque = p.estoque > 0 ? `Temos ${numero(p.estoque)} em estoque, a ${brl(p.preco)} cada.` : 'No momento está sem estoque, mas consigo encomendar.'
+  const de = dispEmpresa(p, conv, d)
+  const estoque = de.qtd > 0 ? `Temos ${numero(de.qtd)} em estoque, a ${brl(p.preco)} cada.` : `No momento está sem estoque aqui.${de.outras || ' Consigo encomendar.'}`
   const alvo = modelos[0] ? d.modelos.find((m) => m.id === modelos[0])?.nome : ''
   const serve = alvo && p.modelosCompativeis.length ? (p.modelosCompativeis.includes(modelos[0]) ? `serve no ${alvo}` : `não serve no ${alvo}`) : ''
   return `${saud} ${p.nome} ${serve ? `${serve} (compatível com ${nomes})` : `serve em ${nomes || 'todos os modelos'}`}. ${estoque} Quer que eu separe para você?`
@@ -155,7 +167,7 @@ function simularResposta(conv: Conversa, d: Dados): string {
   if (/boleto|pagamento|segunda via|vencimento|fatura|nota fiscal|\bnf\b|\bpix\b|cobranca/.test(q)) {
     const r = respostaFinanceiro(conv, d, saud, recente); if (r) return r
   }
-  const tec = respostaTecnica(recente, todo, d, saud); if (tec) return tec
+  const tec = respostaTecnica(conv, recente, todo, d, saud); if (tec) return tec
   const ped = respostaPedido(conv, d, saud, todo); if (ped) return ped
   if (/caiu|queda|quebr|defeito|problema|parou|nao liga|barulho|ruido|trinc|bateu/.test(q)) {
     const diag = d.servicos.find((s) => s.id === 'srv-diag-queda')
@@ -165,7 +177,7 @@ function simularResposta(conv: Conversa, d: Dados): string {
   const kit = d.produtos.find((p) => p.tipo === 'drone' && p.modelosCompativeis.some((m) => modelos.includes(m)))
   if (kit && (conv.etiqueta === 'Venda de drone' || /drone|demonstra|comprar|valor|preco|quanto/.test(q))) {
     const vento = /vento/.test(normalizar(todo)) ? ' Com vento forte, o ideal é aplicar nas primeiras horas da manhã, e na demonstração avaliamos isso na sua área.' : ''
-    return `${saud} O ${kit.nome} sai por ${brl(kit.preco)} e temos ${numero(kit.estoque)} ${kit.estoque === 1 ? 'unidade' : 'unidades'} em estoque.${vento} Posso agendar uma demonstração na sua propriedade. Qual o melhor dia e horário?`
+    return `${saud} O ${kit.nome} sai por ${brl(kit.preco)} e temos ${numero(dispEmpresa(kit, conv, d).qtd)} ${dispEmpresa(kit, conv, d).qtd === 1 ? 'unidade' : 'unidades'} em estoque.${dispEmpresa(kit, conv, d).outras}${vento} Posso agendar uma demonstração na sua propriedade. Qual o melhor dia e horário?`
   }
   return `${saud} Recebi sua mensagem. Vou verificar e retorno em instantes.`
 }
@@ -188,7 +200,7 @@ export async function sugerirResposta(conversa: Conversa, dados: Dados = dadosAt
   if (iaReal()) {
     try {
       const { itens } = interpretarPedido(textosCliente(conversa).join(' '), dados)
-      const pecas = itens.map((i) => `${i.quantidade} × ${i.produto.nome}: estoque ${i.produto.estoque}, preço ${brl(i.produto.preco)}, peso ${i.produto.pesoG} g`).join('\n')
+      const pecas = itens.map((i) => `${i.quantidade} × ${i.produto.nome}: estoque ${dispEmpresa(i.produto, conversa, dados).qtd}${dispEmpresa(i.produto, conversa, dados).outras}, preço ${brl(i.produto.preco)}, peso ${i.produto.pesoG} g`).join('\n')
       const texto = await chamarGemini({
         sistema: 'Você escreve respostas de WhatsApp para a equipe do Grupo AERO (drones agrícolas DJI Agras, peças e oficina). Português do Brasil, educado, objetivo e curto (até 6 linhas). '
           + 'Use apenas os dados fornecidos; não invente preços, prazos nem estoque. Devolva só o texto da mensagem, sem aspas e sem formatação markdown.',

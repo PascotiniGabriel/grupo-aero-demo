@@ -5,6 +5,7 @@ import { Button, CabecalhoPagina, Modal, Select, Painel, EstadoVazio, Selo, cx }
 import { EtiquetaQR } from '@/components/qr/EtiquetaQR'
 import { Marca } from '@/components/layout/Marca'
 import { useStore } from '@/store'
+import { SeloEmpresa, useFiltroEmpresa } from '@/lib/empresas'
 import { relativo } from '@/lib/format'
 import type { Chamado } from '@/types'
 import { ORDEM, SeloChamado, SeloPlano } from './comum'
@@ -16,7 +17,9 @@ const FILTROS: { id: Filtro; rotulo: string }[] = [
 ]
 
 export default function Chamados() {
-  const chamados = useStore((s) => s.chamados)
+  const todosChamados = useStore((s) => s.chamados)
+  const { filtrar } = useFiltroEmpresa()
+  const chamados = useMemo(() => filtrar(todosChamados), [todosChamados, filtrar])
   const clientes = useStore((s) => s.clientes)
   const equipamentos = useStore((s) => s.equipamentos)
   const modelos = useStore((s) => s.modelos)
@@ -79,7 +82,7 @@ export default function Chamados() {
                 <Link to={`/chamados/${c.id}`} className={cx('block rounded-painel border bg-papel p-3.5 hover:bg-nevoa', destaque ? 'border-barro' : 'border-linha')}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="min-w-0 truncate font-medium">#{c.numero} · {c.assunto}</p>
-                    <span className="flex flex-wrap gap-1.5"><SeloPlano clienteId={c.clienteId} /><SeloChamado status={c.status} /></span>
+                    <span className="flex flex-wrap gap-1.5"><SeloEmpresa empresaId={c.empresaId} /><SeloPlano clienteId={c.clienteId} /><SeloChamado status={c.status} /></span>
                   </div>
                   <p className="mt-0.5 text-sm text-mata-suave">{clientes.find((x) => x.id === c.clienteId)?.nome} · {nomeEqp(c.equipamentoId)}</p>
                   {ult && <p className="mt-1.5 line-clamp-1 text-sm"><span className="text-mata-suave">{ult.de === 'cliente' ? 'Cliente' : ult.de === 'ia' ? 'IA' : ult.autor ?? 'Equipe'}: </span>{ult.texto}</p>}

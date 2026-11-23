@@ -6,6 +6,7 @@ import { Avatar, Button, Campo, CabecalhoPagina, Confirmar, Gaveta, Indicador, I
 import { useStore, novoId } from '@/store'
 import { brl, relativo } from '@/lib/format'
 import { diasAFrente } from '@/data/seed'
+import { SeloEmpresa, SelectEmpresa, empresaPadraoParaNovo, useFiltroEmpresa } from '@/lib/empresas'
 
 const ETAPAS: { id: EtapaLead; rotulo: string; peso: number; dica: string }[] = [
   { id: 'novo', rotulo: 'Novo', peso: 0.1, dica: 'Acabou de chegar' },
@@ -28,7 +29,9 @@ const atrasada = (l: Lead) => {
 
 export default function Funil() {
   const navegar = useNavigate()
-  const leads = useStore((s) => s.leads)
+  const todosLeads = useStore((s) => s.leads)
+  const { filtrar, multiplas } = useFiltroEmpresa()
+  const leads = useMemo(() => filtrar(todosLeads), [todosLeads, filtrar])
   const usuarios = useStore((s) => s.usuarios)
   const usuarioAtualId = useStore((s) => s.usuarioAtualId)
   const salvar = useStore((s) => s.salvar)
@@ -74,7 +77,7 @@ export default function Funil() {
     setEhNovo(true)
     setEditando({
       id: novoId('lead'), nome: '', cidade: '', uf: 'BA', fone: '', interesse: '', valorEstimado: 0, etapa: 'novo', origem: 'WhatsApp',
-      responsavel: eu?.nome ?? usuarios[0]?.nome ?? '', proximaAcao: 'Fazer o primeiro contato', proximaData: diasAFrente(1), criadoEm: new Date().toISOString(),
+      responsavel: eu?.nome ?? usuarios[0]?.nome ?? '', proximaAcao: 'Fazer o primeiro contato', proximaData: diasAFrente(1), criadoEm: new Date().toISOString(), empresaId: empresaPadraoParaNovo(),
     })
   }
   const abrir = (l: Lead) => { setEhNovo(false); setEditando({ ...l }) }
@@ -136,7 +139,7 @@ export default function Funil() {
                     >
                       <button type="button" onClick={() => abrir(l)} className="block w-full text-left">
                         <p className="flex items-start justify-between gap-2">
-                          <span className="font-medium leading-snug">{l.nome}</span>
+                          <span className="font-medium leading-snug">{l.nome} <SeloEmpresa empresaId={l.empresaId} /></span>
                           <span className="num shrink-0 text-sm">{brl(l.valorEstimado)}</span>
                         </p>
                         <p className="mt-0.5 flex items-center gap-1 text-xs text-mata-suave"><MapPin size={12} aria-hidden />{l.cidade}/{l.uf}</p>
@@ -173,6 +176,7 @@ export default function Funil() {
         {editando && (
           <div className="grid gap-3 sm:grid-cols-2">
             <Campo rotulo="Nome" obrigatorio className="sm:col-span-2"><Input value={editando.nome} onChange={(e) => mudar({ nome: e.target.value })} autoFocus={ehNovo} /></Campo>
+            {(multiplas || ehNovo) && <Campo rotulo="Empresa" className="sm:col-span-2"><SelectEmpresa valor={editando.empresaId ?? empresaPadraoParaNovo()} aoMudar={(id) => mudar({ empresaId: id })} /></Campo>}
             <Campo rotulo="Cidade"><Input value={editando.cidade} onChange={(e) => mudar({ cidade: e.target.value })} /></Campo>
             <Campo rotulo="Estado">
               <Select value={editando.uf} onChange={(e) => mudar({ uf: e.target.value })}>{UFS.map((u) => <option key={u}>{u}</option>)}</Select>

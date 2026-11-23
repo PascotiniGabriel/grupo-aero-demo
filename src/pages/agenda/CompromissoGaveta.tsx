@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useStore, novoId } from '@/store'
-import { Button, Campo, Gaveta, Input, Select, Textarea, toast } from '@/components/ui'
+import { SelectEmpresa, empresaPadraoParaNovo, useFiltroEmpresa } from '@/lib/empresas'
+import { BuscaCliente, Button, Campo, Gaveta, Input, Select, Textarea, toast } from '@/components/ui'
 import { diasAFrente } from '@/data/seed'
 import type { Compromisso, ItemChecklist, TipoCompromisso } from '@/types'
 import { EditorLocal, CartaoLocal } from '@/pages/os/LocalUI'
@@ -26,6 +27,7 @@ export function CompromissoGaveta({ aberta, aoFechar, inicial, tecnicoFixoId }: 
   const remover = useStore((s) => s.remover)
   const tecnicos = useMemo(() => usuarios.filter((u) => u.papel === 'Técnico'), [usuarios])
 
+  const { multiplas } = useFiltroEmpresa()
   const [f, setF] = useState<Compromisso | null>(null)
   const [erro, setErro] = useState('')
   const checklistMexida = useRef(false)
@@ -40,6 +42,7 @@ export function CompromissoGaveta({ aberta, aoFechar, inicial, tecnicoFixoId }: 
       titulo: inicial?.titulo ?? '',
       inicio: inicial?.inicio ?? ini.toISOString(),
       fim: inicial?.fim ?? new Date(ini.getTime() + 2 * 3600000).toISOString(),
+      empresaId: inicial?.empresaId ?? ordens.find((o) => o.id === inicial?.osId)?.empresaId ?? empresaPadraoParaNovo(),
       osId: inicial?.osId, clienteId: inicial?.clienteId, local: inicial?.local,
       status: inicial?.status ?? 'agendado', observacoes: inicial?.observacoes,
       checklist: inicial?.checklist ?? padraoDoTipo(inicial?.tipo ?? 'atendimento_campo'),
@@ -67,7 +70,7 @@ export function CompromissoGaveta({ aberta, aoFechar, inicial, tecnicoFixoId }: 
     const os = ordens.find((o) => o.id === osId)
     if (!os) { set({ osId: undefined }); return }
     const doOS = montarChecklist({ servicoIds: os.itens.map((i) => i.servicoId ?? ''), atendimento: atendimentoDe(f.tipo), servicos: servicosCad, empresa })
-    set({ osId, clienteId: os.clienteId, local: f.local ?? os.local, titulo: f.titulo || `Atendimento, OS ${os.numero}`, ...(checklistMexida.current || doOS.length === 0 ? {} : { checklist: doOS }) })
+    set({ osId, empresaId: os.empresaId ?? f.empresaId, clienteId: os.clienteId, local: f.local ?? os.local, titulo: f.titulo || `Atendimento, OS ${os.numero}`, ...(checklistMexida.current || doOS.length === 0 ? {} : { checklist: doOS }) })
   }
   const mexerLista = (lista: NonNullable<Compromisso['checklist']>) => { checklistMexida.current = true; set({ checklist: lista }) }
 
@@ -93,6 +96,7 @@ export function CompromissoGaveta({ aberta, aoFechar, inicial, tecnicoFixoId }: 
       </>}
     >
       <div className="space-y-4">
+        {multiplas && <Campo rotulo="Empresa"><SelectEmpresa valor={f.empresaId ?? empresaPadraoParaNovo()} aoMudar={(empresaId) => set({ empresaId })} /></Campo>}
         {!tecnicoFixoId && (
           <Campo rotulo="Técnico" obrigatorio>
             <Select value={f.tecnicoId} onChange={(e) => set({ tecnicoId: e.target.value })}>
@@ -110,10 +114,7 @@ export function CompromissoGaveta({ aberta, aoFechar, inicial, tecnicoFixoId }: 
           <Campo rotulo="Início"><Input type="datetime-local" value={paraDatetimeLocal(f.inicio)} onChange={(e) => e.target.value && set({ inicio: deDatetimeLocal(e.target.value) })} /></Campo>
           <Campo rotulo="Fim"><Input type="datetime-local" value={paraDatetimeLocal(f.fim)} onChange={(e) => e.target.value && set({ fim: deDatetimeLocal(e.target.value) })} /></Campo>
           <Campo rotulo="Cliente">
-            <Select value={f.clienteId ?? ''} onChange={(e) => set({ clienteId: e.target.value || undefined, osId: undefined })}>
-              <option value="">Sem cliente</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </Select>
+            <BuscaCliente opcional valor={f.clienteId ?? ''} aoMudar={(id) => set({ clienteId: id || undefined, osId: undefined })} />
           </Campo>
           <Campo rotulo="Ordem de serviço (opcional)">
             <Select value={f.osId ?? ''} onChange={(e) => mudarOS(e.target.value)}>

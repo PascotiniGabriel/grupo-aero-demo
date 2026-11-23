@@ -26,7 +26,7 @@ export function useMoverOS() {
     if (!pendente) return
     let os = pendente
     if (darBaixa) {
-      for (const i of pecas(os)) movimentar({ produtoId: i.produtoId!, tipo: 'saida', quantidade: i.quantidade, origem: `OS ${os.numero}`, valorUnit: i.valorUnit })
+      for (const i of pecas(os)) movimentar({ produtoId: i.produtoId!, tipo: 'saida', quantidade: i.quantidade, empresaId: os.empresaId, origem: `OS ${os.numero}`, valorUnit: i.valorUnit })
       os = { ...os, historico: [...os.historico, { data: new Date().toISOString(), texto: 'Baixa no estoque das peças da OS' }] }
     }
     salvar('ordens', os)
