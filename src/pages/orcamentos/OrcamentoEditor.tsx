@@ -548,7 +548,7 @@ function Editor({ id }: { id?: string }) {
           {/* Resumo */}
           <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
             <Painel titulo="Prévia do documento" className="mb-5 hidden xl:block">
-              <PreviaDocumento duasPaginas={rasc.tipo === 'drone'} larguraFolha={rasc.tipo === 'drone' ? undefined : 830} renderizar={(pag) => <Proposta d={dadosProposta} empresa={empresa} pagina={pag} />} />
+              <PreviaDocumento imprimir duasPaginas={rasc.tipo === 'drone'} larguraFolha={rasc.tipo === 'drone' ? undefined : 830} renderizar={(pag) => <Proposta d={dadosProposta} empresa={empresa} pagina={pag} />} />
             </Painel>
             <Painel titulo="Resumo">
               <dl className="flex flex-col gap-2 text-sm">
@@ -624,7 +624,7 @@ function Editor({ id }: { id?: string }) {
           aberto={previa} aoFechar={() => setPrevia(false)} titulo="Proposta comercial" largura="xl"
           rodape={<><Button variante="secundario" onClick={() => setPrevia(false)}>Fechar</Button><Button icone={<Printer size={16} />} onClick={() => window.print()}>Imprimir / salvar PDF</Button></>}
         >
-          <PreviaDocumento duasPaginas={rasc.tipo === 'drone'} larguraFolha={rasc.tipo === 'drone' ? undefined : 830} renderizar={(pag) => <Proposta d={dadosProposta} empresa={empresa} pagina={pag} />} />
+          <PreviaDocumento imprimir duasPaginas={rasc.tipo === 'drone'} larguraFolha={rasc.tipo === 'drone' ? undefined : 830} renderizar={(pag) => <Proposta d={dadosProposta} empresa={empresa} pagina={pag} />} />
         </Modal>
 
         <Modal
