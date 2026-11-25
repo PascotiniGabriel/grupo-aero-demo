@@ -29,7 +29,7 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     [2099, 'cli-05', 6, 10, 'enviado', [P('mot-t40'), P('esc-t40'), S('srv-motor'), S('srv-teste-voo')], 150, 0, 'Boleto 15 dias', '5 dias úteis', 'os-1035', true],
     [2100, 'cli-09', 40, 15, 'aprovado', [P('drone-t55'), P('rtk-base'), S('srv-treino')], 4000, 0, 'Financiamento 36x', '20 dias', undefined],
     [2101, 'cli-05', 18, 15, 'aprovado', [P('trem-t40', 1), P('braco-t40', 2), P('hel-t40', 2), S('srv-diag-queda'), S('srv-braco', 2)], 300, 0, 'PIX à vista', '10 dias úteis', 'os-1038'],
-    [2102, 'cli-12', 4, 10, 'enviado', [P('radar-frontal'), S('srv-calibracao'), S('srv-teste-voo')], 0, 85, 'Cartão 3x', '4 dias úteis', 'os-1036'],
+    [2102, 'cli-12', 4, 10, 'enviado', [{ ...P('drone-t55'), valorUnit: 160000 }], 0, 0, 'À vista, cartão de crédito ou financiamento', 'Presencial • até 15 dias úteis após confirmação'],
     [2103, 'cli-14', 52, 7, 'recusado', [P('hel-t20p', 2), P('bico-leque', 4), P('parafuso-helice', 2)], 0, 60, 'PIX à vista', 'Pronta entrega'],
     [2104, 'cli-10', 2, 15, 'rascunho', [P('bat-db800', 2), P('carregador-t25'), P('hel-t25', 3)], 500, 180, 'Boleto 30 dias', '8 dias úteis', undefined, true],
     [2105, 'cli-01', 3, 10, 'enviado', [P('hel-t40', 4), P('bico-t40', 4), P('parafuso-helice', 6), P('filtro-tanque', 4)], 120, 95, 'PIX à vista', 'Pronta entrega'],
@@ -37,6 +37,7 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     [2107, 'cli-13', 1, 15, 'rascunho', [P('rtk-base'), P('rtk-relay'), S('srv-treino')], 0, 0, 'A combinar', '15 dias'],
     [2108, 'cli-07', 9, 15, 'enviado', [P('drone-t25'), P('bat-db800'), S('srv-caar'), S('srv-treino')], 3500, 0, 'Financiamento 24x', '12 dias úteis'],
     [2109, 'cli-12', 12, 15, 'aprovado', [P('drone-t70p'), P('rtk-base'), P('bat-db2160', 2), S('srv-treino')], 5900, 0, 'Financiamento 36x', '25 dias'],    [2110, 'cli-06', 2, 10, 'enviado', [P('bomba-t40'), P('kit-vedacao'), S('srv-limpeza'), S('srv-teste-voo')], 0, 0, 'Boleto 15 dias', '5 dias úteis', 'os-1033'],
+    [2112, 'cli-12', 4, 10, 'enviado', [P('radar-frontal'), S('srv-calibracao'), S('srv-teste-voo')], 0, 85, 'Cartão 3x', '4 dias úteis', 'os-1036'],
     [2111, 'cli-01', 1, 7, 'enviado', [{ id: uid('it'), tipo: 'servico', descricao: 'Pulverização aérea com drone (soja, 120 ha)', quantidade: 120, valorUnit: 85 }], 0, 0, 'PIX após a aplicação', 'Conforme a janela de aplicação'],
   ]
   const orcamentos: Orcamento[] = O_.map(([numero, clienteId, dias, validade, status, itens, desconto, frete, formaPagamento, prazoEntrega, osId, ia]) => ({
@@ -44,6 +45,7 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     desconto, frete, formaPagamento, prazoEntrega,
     observacoes: 'Valores sujeitos a confirmação de estoque. Garantia de 90 dias para peças e serviços.',
     vendedor: 'Diego Santos', osId, criadoPorIA: ia,
+    ...(numero === 2102 && { tipo: 'drone' as const }),
     ...(numero === 2110 && {
       tipo: 'manutencao' as const,
       laudo: {
@@ -82,7 +84,7 @@ export function criarComercial(produtos: Produto[], servicos: Servico[]) {
     [1033, 'cli-06', 'eqp-10', 'diagnostico', 3, 5, T1, 'A bomba não puxa calda e o fluxo oscila em voo.', 'Em análise: suspeita de entupimento no filtro e desgaste da bomba peristáltica.', [S('srv-limpeza')], false],
     [1034, 'cli-03', 'eqp-04', 'diagnostico', 4, 5, T2, 'Vibração alta em voo pairado, com puxada para a direita.', 'Em análise: verificar balanceamento das hélices e folga no motor traseiro direito.', [S('srv-calibracao')], false],
     [1035, 'cli-05', 'eqp-06', 'aguardando_aprovacao', 6, 5, T1, 'Motor 3 com ruído metálico e aquecimento depois de 20 minutos de voo.', 'Rolamento do motor 3 com folga e ESC com sinais de superaquecimento. Recomendada troca do motor e do ESC.', [P('mot-t40'), P('esc-t40'), S('srv-motor'), S('srv-teste-voo')], false, 'orc-2099'],
-    [1036, 'cli-12', 'eqp-18', 'aguardando_aprovacao', 4, 6, T2, 'Radar frontal acusa falha intermitente e o drone não desvia de obstáculos.', 'Sensor do radar frontal sem resposta em 30% dos testes. Cabo íntegro, falha no módulo.', [P('radar-frontal'), S('srv-calibracao'), S('srv-teste-voo')], false, 'orc-2102'],
+    [1036, 'cli-12', 'eqp-18', 'aguardando_aprovacao', 4, 6, T2, 'Radar frontal acusa falha intermitente e o drone não desvia de obstáculos.', 'Sensor do radar frontal sem resposta em 30% dos testes. Cabo íntegro, falha no módulo.', [P('radar-frontal'), S('srv-calibracao'), S('srv-teste-voo')], false, 'orc-2112'],
     [1037, 'cli-08', 'eqp-12', 'em_manutencao', 12, 4, T1, 'Queda leve na decolagem, braço dianteiro esquerdo trincado.', 'Braço dianteiro esquerdo trincado na dobradiça. Motor e hélice sem danos. Eletrônica íntegra.', [P('braco-t40'), S('srv-diag-queda'), S('srv-braco'), S('srv-calibracao')], true, 'orc-2098'],
     [1038, 'cli-05', 'eqp-07', 'em_manutencao', 9, 5, T2, 'Perda de sinal e queda em lavoura de milho. Trem de pouso quebrado.', 'Trem de pouso partido, dois braços empenados e duas hélices destruídas. Sem dano em placa e bateria.', [P('trem-t40'), P('braco-t40', 2), P('hel-t40', 2), S('srv-diag-queda'), S('srv-braco', 2)], true, 'orc-2101'],
     [1039, 'cli-01', 'eqp-01', 'em_manutencao', 5, 3, T1, 'Revisão geral das 600 horas de voo.', 'Desgaste normal. Bicos com resíduo de calda e parafusos de hélice com folga.', [S('srv-revisao'), S('srv-limpeza'), P('parafuso-helice', 2), P('bico-t40', 2)], false],

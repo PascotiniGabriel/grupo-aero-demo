@@ -13,6 +13,7 @@ import { useStore, novoId } from '@/store'
 import { nomeModelo, pesoItens, totalItens } from '@/store/selectors'
 import { brl, dataCurta, peso } from '@/lib/format'
 import { diasAFrente } from '@/data/seed'
+import { EscalaFolha, MODELO_DRONE_PADRAO } from './propostaDrone'
 import {
   compativel, gerarLaudo, interpretarPedido, interpretarSimulado, itemDeProduto, itemDeServico, novoIdItem, type OpcaoItem, type PedidoInterpretado,
 } from '@/lib/ai/orcamento'
@@ -126,6 +127,7 @@ function Editor({ id }: { id?: string }) {
   const atualizar = (p: Partial<Rascunho>) => setRasc((r) => ({ ...r, ...p }))
   const mudarTipo = (tipo: TipoOrcamento) => setRasc((r) => ({
     ...r, tipo,
+    ...(tipo === 'drone' && r.tipo !== 'drone' && !existente ? { prazoEntrega: empresa.modeloOrcamentoDrone?.entrega ?? MODELO_DRONE_PADRAO.entrega, formaPagamento: empresa.modeloOrcamentoDrone?.pagamento ?? MODELO_DRONE_PADRAO.pagamento } : {}),
     itens: tipo === 'pulverizacao' ? comItemPulv(r.itens, r.pulv) : r.tipo === 'pulverizacao' ? r.itens.filter((i) => i.id !== ID_ITEM_PULV) : r.itens,
     modeloPulv: r.modeloPulv || (tipo === 'pulverizacao' ? (equipamentos.find((e) => e.id === r.equipamentoId)?.modeloId ?? '') : ''),
   }))
@@ -616,7 +618,9 @@ function Editor({ id }: { id?: string }) {
           aberto={previa} aoFechar={() => setPrevia(false)} titulo="Proposta comercial" largura="xl"
           rodape={<><Button variante="secundario" onClick={() => setPrevia(false)}>Fechar</Button><Button icone={<Printer size={16} />} onClick={() => window.print()}>Imprimir / salvar PDF</Button></>}
         >
-          <div className="overflow-x-auto rounded-campo border border-linha"><Proposta d={dadosProposta} empresa={empresa} /></div>
+          {rasc.tipo === 'drone'
+            ? <EscalaFolha><Proposta d={dadosProposta} empresa={empresa} /></EscalaFolha>
+            : <div className="overflow-x-auto rounded-campo border border-linha"><Proposta d={dadosProposta} empresa={empresa} /></div>}
         </Modal>
 
         <Modal

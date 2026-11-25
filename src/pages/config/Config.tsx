@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, ExternalLink, Eye, EyeOff, Info, Plus, RotateCcw, Trash2, XCircle } from 'lucide-react'
 import {
-  Abas, Button, Campo, CabecalhoPagina, Confirmar, IconButton, Input, Painel, Select, Selo, SeloIA, toast, cx,
+  Abas, Button, Campo, CabecalhoPagina, Confirmar, IconButton, Input, Painel, Select, Selo, SeloIA, Textarea, toast, cx,
 } from '@/components/ui'
 import { useStore } from '@/store'
 import { chamarGemini, lerConfigIA, salvarConfigIA, type ConfigIA } from '@/lib/ai'
@@ -12,6 +12,7 @@ import { usoDeArmazenamento } from '@/store/armazenamento'
 import { useVerComo } from '@/components/layout/VerComo'
 import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
 import { usePapel } from '@/components/layout/nav'
+import { MODELO_DRONE_PADRAO } from '@/pages/orcamentos/propostaDrone'
 import { AbaChecklists } from './AbaChecklists'
 import { AbaPlanos } from './AbaPlanos'
 import { AbaEmpresas } from './AbaEmpresas'
@@ -38,6 +39,10 @@ function AbaEmpresa() {
   const alterado = useMemo(() => JSON.stringify(form) !== JSON.stringify(empresa), [form, empresa])
   const set = <K extends keyof Empresa>(k: K, v: Empresa[K]) => setForm((f) => ({ ...f, [k]: v }))
 
+  const NL = String.fromCharCode(10)
+  const md = { ...MODELO_DRONE_PADRAO, ...(form.modeloOrcamentoDrone ?? {}) }
+  const setMd = (p: Partial<typeof md>) => set('modeloOrcamentoDrone', { ...md, ...p })
+
   function adicionarUnidade() {
     const t = nova.trim()
     if (!t) return
@@ -46,7 +51,7 @@ function AbaEmpresa() {
   }
   function salvar() {
     if (!form.nome.trim()) { toast.erro('Informe o nome da empresa'); return }
-    salvarEmpresa({ ...form, nome: form.nome.trim(), unidades: form.unidades.map((u) => u.trim()).filter(Boolean) })
+    salvarEmpresa({ ...form, modeloOrcamentoDrone: form.modeloOrcamentoDrone && { ...form.modeloOrcamentoDrone, kit: form.modeloOrcamentoDrone.kit.map((k) => k.trim()).filter(Boolean) }, nome: form.nome.trim(), unidades: form.unidades.map((u) => u.trim()).filter(Boolean) })
     toast.sucesso('Dados da empresa salvos')
   }
 
@@ -65,6 +70,20 @@ function AbaEmpresa() {
           {alterado && <Button variante="fantasma" onClick={() => setForm({ ...empresa, unidades: [...empresa.unidades] })}>Descartar alterações</Button>}
           <Button disabled={!alterado} onClick={salvar}>Salvar dados</Button>
         </div>
+      </Painel>
+
+      <Painel titulo="Modelo do orçamento de drone">
+        <p className="mb-3 text-sm text-mata-suave">Textos padrão do documento de 2 páginas dos orçamentos de drone.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {([['entrega', 'Entrega'], ['pagamento', 'Pagamento'], ['treinamento', 'Treinamento'], ['ncm', 'NCM'], ['ex', 'EX tarifário'], ['cst', 'CST inicial']] as const).map(([k, r]) => (
+            <Campo key={k} rotulo={r}><Input value={md[k]} onChange={(e) => setMd({ [k]: e.target.value })} /></Campo>
+          ))}
+          <div className="sm:col-span-2"><Campo rotulo="Ato de conformidade legal"><Input value={md.atoConformidade} onChange={(e) => setMd({ atoConformidade: e.target.value })} /></Campo></div>
+          <div className="sm:col-span-2"><Campo rotulo="Itens do kit (um por linha)"><Textarea rows={5} value={md.kit.join(NL)} onChange={(e) => setMd({ kit: e.target.value.split(NL) })} /></Campo></div>
+          <div className="sm:col-span-2"><Campo rotulo="Observação"><Textarea rows={5} value={md.observacao} onChange={(e) => setMd({ observacao: e.target.value })} /></Campo></div>
+          <div className="sm:col-span-2"><Campo rotulo="Suporte e pós-venda"><Textarea rows={3} value={md.posVenda} onChange={(e) => setMd({ posVenda: e.target.value })} /></Campo></div>
+        </div>
+        <p className="mt-3 text-xs text-mata-suave">Salve os dados da empresa para aplicar. Entrega e pagamento também podem ser mudados em cada orçamento.</p>
       </Painel>
 
       <Painel titulo="Unidades">

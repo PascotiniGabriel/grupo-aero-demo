@@ -213,6 +213,16 @@ export interface Empresa {
   /** Modelos de checklist por tipo de atendimento (ausente = padrão do seed). */
   checklistAtendimento?: { campo: string[]; oficina: string[] }
   planosSuporte?: PlanoSuporte[]
+  /** Textos padrão do documento de orçamento de drone (ausente = padrão em pages/orcamentos/propostaDrone). */
+  modeloOrcamentoDrone?: ModeloOrcamentoDrone
+}
+
+export interface ModeloOrcamentoDrone {
+  entrega: string; pagamento: string; treinamento: string
+  /** Uma linha por item do kit, ex.: "03 Baterias DB1580". */
+  kit: string[]
+  ncm: string; ex: string; atoConformidade: string; cst: string
+  observacao: string; posVenda: string
 }
 
 export type TipoCompromisso = 'atendimento_campo' | 'manutencao_oficina' | 'entrega' | 'treinamento' | 'revisao_programada' | 'outro'

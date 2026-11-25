@@ -9,6 +9,7 @@ import { LogoDocumento } from '@/components/layout/Marca'
 import { useStore } from '@/store'
 import { miniaturaProduto } from '@/lib/fotos'
 import { estimativas } from './ServicoUI'
+import { PropostaDrone } from './propostaDrone'
 
 /** yyyy-mm-dd de um ISO. */
 export const paraInput = (iso: string | undefined) => (iso ? iso.slice(0, 10) : '')
@@ -155,6 +156,8 @@ export function Proposta({ d, empresa }: { d: DadosProposta; empresa: { nome: st
   const dt = (iso: string) => new Date(iso).toLocaleDateString('pt-BR')
   const opcionais = d.itens.filter((i) => i.opcional)
   const totalOpcionais = opcionais.reduce((t, i) => t + i.quantidade * i.valorUnit, 0)
+  const modeloDrone = useStore((s) => s.empresa.modeloOrcamentoDrone)
+  if (d.tipo === 'drone') return <PropostaDrone d={d} empresa={empresa} modelo={modeloDrone} />
   return (
     <article className="folha-claro mx-auto max-w-[800px] bg-white p-6 text-[13px] leading-snug text-black print:p-0">
       <header className="flex items-start justify-between gap-4 border-b-2 border-black pb-3">
