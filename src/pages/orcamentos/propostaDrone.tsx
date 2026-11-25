@@ -89,7 +89,9 @@ const Campo = ({ r, v }: { r: string; v?: string }) => (
 
 /* ------------------------------------------------------------------ documento */
 
-export function PropostaDrone({ d, empresa, modelo }: {
+export function PropostaDrone({ d, empresa, modelo, pagina }: {
+  /** Mostra só uma página (pré-visualização na tela; a impressão sempre sai completa). */
+  pagina?: 1 | 2
   d: DadosProposta
   empresa: { nome: string }
   modelo?: ModeloOrcamentoDrone
@@ -110,9 +112,10 @@ export function PropostaDrone({ d, empresa, modelo }: {
   const docLabel = c?.tipo === 'PF' ? 'CPF' : 'CPF/CNPJ'
 
   return (
-    <article className="folha-claro doc-drone mx-auto flex flex-col gap-4 print:gap-0">
+    <article data-pag={pagina} className="folha-claro doc-drone mx-auto flex flex-col gap-4 print:gap-0">
       <style>{`
         .pagina-drone{width:186mm;height:272mm;box-sizing:border-box;border:1px solid #DDE5E0}
+        @media screen{.doc-drone[data-pag="1"] .pagina-drone:nth-of-type(2){display:none}.doc-drone[data-pag="2"] .pagina-drone:nth-of-type(1){display:none}}
         @media print{.pagina-drone{border:0;break-after:page;page-break-after:always}.pagina-drone:last-child{break-after:auto;page-break-after:auto}.doc-drone{zoom:1!important}}
       `}</style>
 
@@ -222,7 +225,7 @@ export function PropostaDrone({ d, empresa, modelo }: {
 }
 
 /** Reduz a folha para caber na largura disponível (pré-visualização no celular). */
-export function EscalaFolha({ children }: { children: ReactNode }) {
+export function EscalaFolha({ children, largura = 186 * 3.7795 + 2 }: { children: ReactNode; largura?: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [z, setZ] = useState(1)
   useEffect(() => {
@@ -230,12 +233,12 @@ export function EscalaFolha({ children }: { children: ReactNode }) {
     if (!el) return
     const medir = () => {
       const w = el.clientWidth
-      setZ(w > 0 ? Math.min(1, w / (186 * 3.7795 + 2)) : 1)
+      setZ(w > 0 ? Math.min(1, w / largura) : 1)
     }
     medir()
     const ro = new ResizeObserver(medir)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [largura])
   return <div ref={ref} className="w-full overflow-hidden"><div style={{ zoom: z }} className="doc-drone flex justify-center">{children}</div></div>
 }

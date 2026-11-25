@@ -12,7 +12,10 @@ import { usoDeArmazenamento } from '@/store/armazenamento'
 import { useVerComo } from '@/components/layout/VerComo'
 import { InterruptorOffline, plural } from '@/components/layout/Sincronizacao'
 import { usePapel } from '@/components/layout/nav'
-import { MODELO_DRONE_PADRAO } from '@/pages/orcamentos/propostaDrone'
+import { MODELO_DRONE_PADRAO, PropostaDrone } from '@/pages/orcamentos/propostaDrone'
+import { PreviaDocumento } from '@/pages/orcamentos/PreviaDocumento'
+import { diasAFrente } from '@/data/seed'
+import type { DadosProposta } from '@/pages/orcamentos/comum'
 import { AbaChecklists } from './AbaChecklists'
 import { AbaPlanos } from './AbaPlanos'
 import { AbaEmpresas } from './AbaEmpresas'
@@ -83,6 +86,8 @@ function AbaEmpresa() {
           <div className="sm:col-span-2"><Campo rotulo="Observação"><Textarea rows={5} value={md.observacao} onChange={(e) => setMd({ observacao: e.target.value })} /></Campo></div>
           <div className="sm:col-span-2"><Campo rotulo="Suporte e pós-venda"><Textarea rows={3} value={md.posVenda} onChange={(e) => setMd({ posVenda: e.target.value })} /></Campo></div>
         </div>
+        <h3 className="titulo mb-2 mt-5 text-sm">Prévia com orçamento de exemplo</h3>
+        <PreviaDocumento duasPaginas renderizar={(pag) => <PropostaDrone d={AMOSTRA_ORCAMENTO()} empresa={form} modelo={md} pagina={pag} />} />
         <p className="mt-3 text-xs text-mata-suave">Salve os dados da empresa para aplicar. Entrega e pagamento também podem ser mudados em cada orçamento.</p>
       </Painel>
 
@@ -357,6 +362,13 @@ function AbaDados() {
     </div>
   )
 }
+
+const AMOSTRA_ORCAMENTO = (): DadosProposta => ({
+  numero: 'Exemplo', data: diasAFrente(0), validade: diasAFrente(15),
+  cliente: { id: 'amostra', nome: 'Fazenda Boa Safra (exemplo)', tipo: 'PJ', documento: '00.000.000/0001-00', cidade: 'Luís Eduardo Magalhães', uf: 'BA', endereco: 'Rodovia BR-242, km 10', cep: '47850-000', fone: '(77) 90000-0001', email: 'contato@exemplo.com.br', desde: diasAFrente(-300) },
+  itens: [{ id: 'a1', tipo: 'drone', descricao: 'Drone DJI Agras T50', quantidade: 1, valorUnit: 189000 }],
+  subtotal: 189000, desconto: 0, frete: 0, total: 189000, formaPagamento: '', prazoEntrega: '', observacoes: '', vendedor: 'Equipe comercial', tipo: 'drone',
+})
 
 export default function Config() {
   const papel = usePapel()

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { SelectEmpresa, empresaPadraoParaNovo, estoqueDe, outraEmpresaTem, useEmpresaDoRegistro } from '@/lib/empresas'
-import { AlertTriangle, ArrowLeft, Check, Copy, MessageCircle, Printer, Save, Send, Trash2, UserPlus, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, Copy, Eye, MessageCircle, Printer, Save, Send, Trash2, UserPlus, X } from 'lucide-react'
 import type { Cliente, ItemComercial, Orcamento, StatusOrcamento } from '@/types'
 import {
   Button, Campo, CabecalhoPagina, Confirmar, EstadoVazio, IconButton, Input, Modal, Painel, Select, SeloIA, SeloStatus, Textarea, cx, toast,
@@ -13,11 +13,12 @@ import { useStore, novoId } from '@/store'
 import { nomeModelo, pesoItens, totalItens } from '@/store/selectors'
 import { brl, dataCurta, peso } from '@/lib/format'
 import { diasAFrente } from '@/data/seed'
-import { EscalaFolha, MODELO_DRONE_PADRAO } from './propostaDrone'
+import { MODELO_DRONE_PADRAO } from './propostaDrone'
 import {
   compativel, gerarLaudo, interpretarPedido, interpretarSimulado, itemDeProduto, itemDeServico, novoIdItem, type OpcaoItem, type PedidoInterpretado,
 } from '@/lib/ai/orcamento'
 import { ID_ITEM_PULV, PainelLaudo, PainelPulverizacao, SeletorTipo, itemPulverizacao, type LaudoEdicao, type PulvEdicao, type TipoOrcamento } from './ServicoUI'
+import { PreviaDocumento } from './PreviaDocumento'
 import { BuscaItem, FORMAS_PAGAMENTO, PRAZOS_ENTREGA, Proposta, SeletorCliente, deInput, paraInput, rotuloEquipamento } from './comum'
 
 const SUGESTOES = [
@@ -390,11 +391,12 @@ function Editor({ id }: { id?: string }) {
           acoes={<>
             {numero && <SeloStatus tipo="orcamento" status={status} />}
             {rasc.criadoPorIA && <SeloIA>Montado com IA</SeloIA>}
+            <button type="button" onClick={() => setPrevia(true)} className="inline-flex h-10 items-center gap-1.5 rounded-campo border border-linha bg-papel px-3 text-sm font-medium hover:bg-nevoa xl:hidden"><Eye size={16} aria-hidden />Ver prévia</button>
             <Link to="/orcamentos" className="inline-flex h-10 items-center gap-1.5 rounded-campo border border-linha bg-papel px-3 text-sm font-medium hover:bg-nevoa"><ArrowLeft size={16} aria-hidden />Orçamentos</Link>
           </>}
         />
 
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_480px]">
           <div className="flex min-w-0 flex-col gap-5">
             <Painel titulo="Tipo de orçamento"><SeletorTipo valor={rasc.tipo} aoMudar={mudarTipo} /></Painel>
 
@@ -544,7 +546,10 @@ function Editor({ id }: { id?: string }) {
           </div>
 
           {/* Resumo */}
-          <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start">
+          <aside className="min-w-0 lg:sticky lg:top-4 lg:self-start xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+            <Painel titulo="Prévia do documento" className="mb-5 hidden xl:block">
+              <PreviaDocumento duasPaginas={rasc.tipo === 'drone'} larguraFolha={rasc.tipo === 'drone' ? undefined : 830} renderizar={(pag) => <Proposta d={dadosProposta} empresa={empresa} pagina={pag} />} />
+            </Painel>
             <Painel titulo="Resumo">
               <dl className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between"><dt className="text-mata-suave">Subtotal</dt><dd className="num">{brl(subtotal)}</dd></div>
@@ -605,6 +610,7 @@ function Editor({ id }: { id?: string }) {
             <p className="text-xs text-mata-suave">{rasc.itens.length} {rasc.itens.length === 1 ? 'item' : 'itens'}{pesoG > 0 ? ` · ${peso(pesoG)}` : ''}</p>
             <p className={cx('titulo num truncate text-lg', faltas.length > 0 && 'text-barro-texto')}>{brl(total)}</p>
           </div>
+          <Button variante="secundario" icone={<Eye size={16} />} onClick={() => setPrevia(true)}>Ver prévia</Button>
           <Button icone={<Save size={16} />} onClick={() => persistir(status, 'Orçamento salvo')}>Salvar</Button>
         </div>
 
@@ -618,9 +624,7 @@ function Editor({ id }: { id?: string }) {
           aberto={previa} aoFechar={() => setPrevia(false)} titulo="Proposta comercial" largura="xl"
           rodape={<><Button variante="secundario" onClick={() => setPrevia(false)}>Fechar</Button><Button icone={<Printer size={16} />} onClick={() => window.print()}>Imprimir / salvar PDF</Button></>}
         >
-          {rasc.tipo === 'drone'
-            ? <EscalaFolha><Proposta d={dadosProposta} empresa={empresa} /></EscalaFolha>
-            : <div className="overflow-x-auto rounded-campo border border-linha"><Proposta d={dadosProposta} empresa={empresa} /></div>}
+          <PreviaDocumento duasPaginas={rasc.tipo === 'drone'} larguraFolha={rasc.tipo === 'drone' ? undefined : 830} renderizar={(pag) => <Proposta d={dadosProposta} empresa={empresa} pagina={pag} />} />
         </Modal>
 
         <Modal

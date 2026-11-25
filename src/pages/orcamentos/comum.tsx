@@ -152,12 +152,12 @@ function TabelaItens({ itens, titulo }: { itens: ItemComercial[]; titulo: string
   )
 }
 
-export function Proposta({ d, empresa }: { d: DadosProposta; empresa: { nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string } }) {
+export function Proposta({ d, empresa, pagina }: { pagina?: 1 | 2; d: DadosProposta; empresa: { nome: string; cnpj: string; endereco: string; cidade: string; fone: string; email: string } }) {
   const dt = (iso: string) => new Date(iso).toLocaleDateString('pt-BR')
   const opcionais = d.itens.filter((i) => i.opcional)
   const totalOpcionais = opcionais.reduce((t, i) => t + i.quantidade * i.valorUnit, 0)
   const modeloDrone = useStore((s) => s.empresa.modeloOrcamentoDrone)
-  if (d.tipo === 'drone') return <PropostaDrone d={d} empresa={empresa} modelo={modeloDrone} />
+  if (d.tipo === 'drone') return <PropostaDrone d={d} empresa={empresa} modelo={modeloDrone} pagina={pagina} />
   return (
     <article className="folha-claro mx-auto max-w-[800px] bg-white p-6 text-[13px] leading-snug text-black print:p-0">
       <header className="flex items-start justify-between gap-4 border-b-2 border-black pb-3">
